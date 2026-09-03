@@ -239,6 +239,7 @@ def filter_crops(
     moisture_pct: float = 50.0,
     rainfall_mm: float = 1200.0,
     is_built_up: bool = False,
+    is_water: bool = False,
     elevation_m: float = 100.0,
     **kwargs
 ) -> List[Dict[str, Any]]:
@@ -263,6 +264,9 @@ def filter_crops(
     if "is_built_up" in kwargs:
         is_built_up = kwargs["is_built_up"]
 
+    if "is_water" in kwargs:
+        is_water = kwargs["is_water"]
+
     if "soil_ph" in kwargs:
         soil_ph = kwargs["soil_ph"]
     ranked_crops = []
@@ -279,7 +283,14 @@ def filter_crops(
     for crop in CROP_REQUIREMENTS:
         limiting_factors = []
 
-        if is_built_up:
+        if is_water:
+            final_grade = "N"
+            final_label = "ไม่แนะนำ (N)"
+            final_score = 0
+            is_masked = True
+            mask_reason = "พื้นที่เป็นแหล่งน้ำหรือพื้นที่ชุ่มน้ำถาวร ไม่มีหน้าดินสำหรับการเพาะปลูกพืชบก"
+            limiting_factors.append(mask_reason)
+        elif is_built_up:
             final_grade = "N"
             final_label = "ไม่แนะนำ (N)"
             final_score = 15

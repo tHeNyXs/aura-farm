@@ -62,14 +62,16 @@ def calculate_level1_suitability(
     """
     # Check if NDBI Hard Mask triggered
     if ndbi_result.get("skip_ahp", False):
-        logger.info("NDBI Hard Mask active -> Skipping AHP calculation.")
+        is_water = ndbi_result.get("is_water", False)
+        logger.info("Land-cover hard mask active -> Skipping AHP calculation.")
         return {
-            "score": 0.15,
-            "percentage": 15,
+            "score": 0.0 if is_water else 0.15,
+            "percentage": 0 if is_water else 15,
             "grade": "N",
-            "fao_label": "ไม่เหมาะสมอย่างยิ่ง (N) - สิ่งปลูกสร้าง/อาคารคอนกรีต",
+            "fao_label": "ไม่เหมาะสมอย่างยิ่ง (N) - แหล่งน้ำ" if is_water else "ไม่เหมาะสมอย่างยิ่ง (N) - สิ่งปลูกสร้าง/อาคารคอนกรีต",
             "skip_ahp": True,
-            "is_built_up": True,
+            "is_built_up": not is_water,
+            "is_water": is_water,
             "ndbi": ndbi_result.get("ndbi"),
             "ndvi": ndbi_result.get("ndvi"),
             "message": ndbi_result.get("message"),

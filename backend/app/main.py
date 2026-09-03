@@ -87,6 +87,31 @@ async def evaluate_land_parcel(req: EvaluateRequest):
 
         ndbi_result = evaluate_ndbi_hard_mask(b8_nir, b4_red, b11_swir)
 
+        # Water must be excluded before AHP. A water surface can have low NDVI,
+        # which otherwise looks superficially similar to non-vegetated land.
+        ndvi_value = ndbi_result["ndvi"]
+        mndwi_value = gee_data.get("mndwi_value", 0.0)
+        is_water_body = (
+            gee_data.get("land_use_code") == 80 or
+            (mndwi_value >= 0.10 and ndvi_value < 0.10)
+        )
+        if is_water_body:
+            ndbi_result = {
+                "skip_ahp": True,
+                "grade": "N",
+                "score": 0.0,
+                "percentage": 0,
+                "ndbi": ndbi_result["ndbi"],
+                "ndvi": ndvi_value,
+                "is_built_up": False,
+                "is_water": True,
+                "message": (
+                    f"พื้นที่นี้เป็นแหล่งน้ำถาวร (WorldCover={gee_data.get('land_use_label')}, "
+                    f"MNDWI={mndwi_value:.3f}, NDVI={ndvi_value:.3f}) "
+                    "→ ไม่ประเมินความเหมาะสมสำหรับพืชบก (เกรด N)"
+                ),
+            }
+
         # Step 3: Level 1 - Overall Land Suitability Index (AHP Weighted Overlay - จันทองพูน และคณะ, 2565 NCCE27)
         level1_result = calculate_level1_suitability(
             gee_data=gee_data,
@@ -99,7 +124,8 @@ async def evaluate_land_parcel(req: EvaluateRequest):
         level2_crops = filter_crops(
             gee_data=gee_data,
             level1_result=level1_result,
-            soil_ph=req.soil_ph or 6.5
+            soil_ph=req.soil_ph or 6.5,
+            is_water=is_water_body,
         )
 
         # Step 5: Level 3 - OAE Benchmark Yield Validation
@@ -125,6 +151,7 @@ async def evaluate_land_parcel(req: EvaluateRequest):
             "land_use_code": gee_data["land_use_code"],
             "land_use_label": gee_data["land_use_label"],
             "is_built_up": ndbi_result["is_built_up"],
+            "is_water": is_water_body,
             "capture_date": datetime.now().strftime("%Y-%m-%d"),
             "level1": level1_result,
             "level2": level2_crops,
