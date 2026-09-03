@@ -174,7 +174,7 @@ export default function AreaSelectionClient() {
   };
 
   return (
-    <div className="flex flex-col w-full min-h-screen bg-bg">
+    <div className="flex flex-col w-full h-[100dvh] overflow-hidden bg-bg">
       {/* ═══════════════════════════════════════════
           HEADER
          ═══════════════════════════════════════════ */}
@@ -225,7 +225,7 @@ export default function AreaSelectionClient() {
       {/* ═══════════════════════════════════════════
           SPLIT CONTAINER: SIDEBAR + SATELLITE MAP
          ═══════════════════════════════════════════ */}
-      <div className="flex flex-col lg:flex-row flex-1 w-full relative overflow-hidden h-[calc(100vh-64px)] lg:h-auto">
+      <div className="flex flex-col lg:flex-row flex-1 w-full relative overflow-hidden">
         {/* ── Left Sidebar (380px) ───────────────── */}
         <aside className={`absolute lg:relative inset-0 lg:inset-auto lg:w-[380px] bg-panel lg:border-r border-line flex-col shrink-0 z-[2000] lg:z-20 overflow-y-auto ${isMobileSidebarOpen ? "flex" : "hidden lg:flex"}`}>
           {/* Mobile Close Button */}
