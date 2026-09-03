@@ -7,6 +7,8 @@ import Footer from "@/app/components/ui/footer";
 import SaveParcelButton from "./components/save-parcel-button";
 import { FAOSuitabilityClass } from "@/app/lib/types";
 
+export const maxDuration = 60;
+
 interface PageProps {
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;

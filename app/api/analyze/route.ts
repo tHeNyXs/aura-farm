@@ -3,6 +3,8 @@ import { analyzeLandParcel } from "@/app/lib/ai-analyzer";
 import { saveAnalysisResult } from "@/app/lib/analysis-store";
 import { fetchRealSatelliteScene } from "@/app/lib/services/satellite-service";
 
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -50,9 +52,16 @@ export async function POST(req: NextRequest) {
 
     // Enforce Strict Real GEE Satellite Requirement: No Fake Synthesized Data Allowed
     if (!realSatellite || !realSatellite.isRealData || realSatellite.source !== "google_earth_engine") {
+      const reason = satelliteResult.status === "rejected"
+        ? satelliteResult.reason instanceof Error
+          ? satelliteResult.reason.message
+          : String(satelliteResult.reason)
+        : "GEE ไม่ส่งชุดข้อมูลดาวเทียมที่ตรวจสอบได้";
+      console.warn("Satellite analysis unavailable:", reason);
       return NextResponse.json(
         {
-          error: "⚠️ ไม่สามารถดึงข้อมูลดาวเทียมสดจาก Google Earth Engine ได้ในขณะนี้ กรุณาตรวจสอบว่าเปิดรัน Python GEE Server บน Port 8000 (http://127.0.0.1:8000/health) แล้วและล็อกอินผ่าน ee.Authenticate() เรียบร้อยแล้ว",
+          error: "ยังวิเคราะห์บริเวณนี้ไม่ได้ กรุณาลองเลือกพื้นที่อื่นหรือวาดแปลงใหม่อีกครั้ง",
+          code: "INSUFFICIENT_SATELLITE_DATA",
         },
         { status: 503 }
       );
@@ -98,7 +107,10 @@ export async function POST(req: NextRequest) {
       slope_degrees === undefined
     ) {
       return NextResponse.json(
-        { error: "ข้อมูลชั้นวิเคราะห์จากดาวเทียมไม่ครบ จึงไม่สามารถประเมินผลได้" },
+        {
+          error: "ยังวิเคราะห์บริเวณนี้ไม่ได้ กรุณาลองเลือกพื้นที่อื่นหรือวาดแปลงใหม่อีกครั้ง",
+          code: "INSUFFICIENT_SATELLITE_DATA",
+        },
         { status: 503 }
       );
     }

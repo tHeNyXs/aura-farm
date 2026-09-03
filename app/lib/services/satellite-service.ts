@@ -32,16 +32,16 @@ export async function fetchRealSatelliteScene(
   // 1. Try Live Google Earth Engine Python Service First (Port 8000 or Cloud Backend)
   if (polygon && polygon.length >= 3) {
     const backendBase = (process.env.PYTHON_BACKEND_URL || "").replace(/\/$/, "");
-    const urls = [
-      ...(backendBase ? [`${backendBase}/api/v1/analyze-gee`] : []),
-      "http://127.0.0.1:8000/api/v1/analyze-gee",
-      "http://localhost:8000/api/v1/analyze-gee",
-    ];
+    if (!backendBase) {
+      throw new Error("ยังไม่ได้กำหนด PYTHON_BACKEND_URL สำหรับการเชื่อมต่อ GEE");
+    }
+    const urls = [`${backendBase}/api/v1/analyze-gee`];
+    let lastError = "ไม่ได้รับผลลัพธ์จาก GEE";
 
     for (const url of urls) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout for GEE Supercomputer calculations
+        const timeoutId = setTimeout(() => controller.abort(), 55000); // Allows Render cold start plus GEE computation.
 
         const geeRes = await fetch(url, {
           method: "POST",
@@ -76,12 +76,18 @@ export async function fetchRealSatelliteScene(
               source: "google_earth_engine",
             };
           }
+          lastError = "GEE backend ส่งผลลัพธ์ที่ไม่มีค่า NDVI";
+        } else {
+          const errorBody = await geeRes.text();
+          lastError = `GEE backend ตอบ HTTP ${geeRes.status}${errorBody ? `: ${errorBody}` : ""}`;
         }
-      } catch (err: any) {
-        console.warn(`[GEE Satellite Fetch Warning] ${url}:`, err.message || err);
+      } catch (err: unknown) {
+        lastError = err instanceof Error ? err.message : String(err);
+        console.warn(`[GEE Satellite Fetch Warning] ${url}:`, lastError);
       }
     }
+    throw new Error(lastError);
   }
 
-  throw new Error("ไม่สามารถดึงข้อมูลดาวเทียมสดจาก Google Earth Engine ได้");
+  throw new Error("polygon ไม่ถูกต้องสำหรับการวิเคราะห์จากดาวเทียม");
 }
