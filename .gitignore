@@ -39,3 +39,21 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python & backend
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+ENV/
+
+# credentials & secrets
+service_account.json
+credentials.json
+*.json.key
+
+# cache
+.aura_cache/
+
