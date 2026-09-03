@@ -234,16 +234,37 @@ def check_ldd_range(value: float, ranges: Dict[str, Tuple[float, float]], param_
         return "N", f"{param_name} ({value}{unit}) ไม่อยู่ในเกณฑ์ที่เหมาะสม N (เกณฑ์ S1 คือ {s1_min}-{s1_max}{unit})"
 
 def filter_crops(
-    slope_deg: float,
-    soil_ph: float,
-    moisture_pct: float,
-    rainfall_mm: float,
+    slope_deg: float = 0.0,
+    soil_ph: float = 6.5,
+    moisture_pct: float = 50.0,
+    rainfall_mm: float = 1200.0,
     is_built_up: bool = False,
-    elevation_m: float = 100.0
+    elevation_m: float = 100.0,
+    **kwargs
 ) -> List[Dict[str, Any]]:
     """
     ประเมินพืชเศรษฐกิจ 15 ชนิดด้วยวิธีปัจจัยจำกัดสูงสุด (Maximum Limitation Method - FAO 1983)
+    รองรับทั้งการเรียกโดยตรง และการเรียกผ่าน main.py (gee_data, level1_result)
     """
+    if "gee_data" in kwargs:
+        gd = kwargs["gee_data"]
+        slope_deg = gd.get("slope_degrees", slope_deg)
+        rainfall_mm = gd.get("annual_rainfall_mm", rainfall_mm)
+        elevation_m = gd.get("elevation_m", elevation_m)
+        sar_db = gd.get("sar_vv_db", -12.0)
+        # แปลง SAR backscatter VV dB เป็นความชื้นผิวดินโดยประมาณ
+        moisture_pct = max(10.0, min(95.0, (sar_db + 22.0) * 5.0))
+
+    if "level1_result" in kwargs:
+        l1 = kwargs["level1_result"]
+        if isinstance(l1, dict) and l1.get("is_masked_out"):
+            is_built_up = True
+
+    if "is_built_up" in kwargs:
+        is_built_up = kwargs["is_built_up"]
+
+    if "soil_ph" in kwargs:
+        soil_ph = kwargs["soil_ph"]
     ranked_crops = []
 
     grade_weights = {"S1": 4, "S2": 3, "S3": 2, "N": 1}
