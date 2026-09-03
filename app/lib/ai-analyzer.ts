@@ -54,6 +54,16 @@ export interface AIAnalysisInput {
     slope_degrees?: number;
     annual_rainfall_mm?: number;
     lst_temp_celsius?: number;
+    zoning?: {
+      available: boolean;
+      source?: string;
+      crops?: Array<{
+        crop_id: string;
+        official_grade: FAOSuitabilityClass | null;
+        coverage_pct: number;
+        area_share_pct: Record<FAOSuitabilityClass, number>;
+      }>;
+    };
     minNdvi?: number;
     maxNdvi?: number;
     isRealData?: boolean;
@@ -222,6 +232,11 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
   };
 
   const oaeValidations: OAEBenchmarkValidation[] = [];
+  const zoningByCrop = new Map(
+    input.real_satellite?.zoning?.available
+      ? (input.real_satellite.zoning.crops || []).map((item) => [item.crop_id, item])
+      : []
+  );
 
   const rankedCrops: Crop[] = CROP_DATABASE.map((crop) => {
     // Evaluate crop with official LDD Maximum Limitation Matrix
@@ -235,9 +250,21 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
       isBuiltUp: isBuiltUpMasked,
       isWaterBody: isWaterMasked,
     });
+    const zoning = zoningByCrop.get(crop.id);
+    const useOfficialZoning = Boolean(zoning?.official_grade && zoning.coverage_pct >= 50 && !isWaterMasked && !isBuiltUpMasked);
+    const finalFaoClass = useOfficialZoning ? zoning!.official_grade! : lddResult.fao_class;
+    const finalMatchPercentage = useOfficialZoning
+      ? Math.round(zoning!.area_share_pct[finalFaoClass] || 0)
+      : lddResult.match_percentage;
+    const finalFaoLabel = useOfficialZoning
+      ? ({ S1: "เหมาะสมมาก (S1)", S2: "เหมาะสมปานกลาง (S2)", S3: "เหมาะสมน้อย (S3)", N: "ไม่แนะนำ (N)" } as const)[finalFaoClass]
+      : lddResult.fao_label;
+    const zoningFactor = useOfficialZoning
+      ? `LDD Zoning: ${finalFaoClass} ครอบคลุม ${zoning!.area_share_pct[finalFaoClass]}% ของแปลง`
+      : undefined;
 
     // OAE Yield Benchmark Validation
-    const oaeVal = validateWithOAEBenchmark(crop.id, lddResult.fao_class);
+    const oaeVal = validateWithOAEBenchmark(crop.id, finalFaoClass);
     if (oaeVal) {
       oaeValidations.push(oaeVal);
     }
@@ -253,6 +280,7 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
     }
 
     const cautions = [...crop.cautions_template];
+    if (zoningFactor) cautions.unshift(zoningFactor);
     if (lddResult.limiting_factors.length > 0) {
       cautions.unshift(...lddResult.limiting_factors);
     }
@@ -263,9 +291,9 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
       category: crop.category,
       icon_emoji: crop.icon_emoji,
       image_url: crop.image_url,
-      fao_class: lddResult.fao_class,
-      fao_label: lddResult.fao_label,
-      match_percentage: lddResult.match_percentage,
+      fao_class: finalFaoClass,
+      fao_label: finalFaoLabel,
+      match_percentage: finalMatchPercentage,
       growth_duration: crop.growth_duration,
       water_requirement: crop.water_requirement,
       water_level: crop.water_level,

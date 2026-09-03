@@ -17,6 +17,16 @@ export interface RealSatelliteData {
   slope_degrees?: number;
   annual_rainfall_mm?: number;
   lst_temp_celsius?: number;
+  zoning?: {
+    available: boolean;
+    source?: string;
+    crops?: Array<{
+      crop_id: string;
+      official_grade: "S1" | "S2" | "S3" | "N" | null;
+      coverage_pct: number;
+      area_share_pct: Record<"S1" | "S2" | "S3" | "N", number>;
+    }>;
+  };
   minNdvi?: number;
   maxNdvi?: number;
   isRealData: boolean;
@@ -69,6 +79,7 @@ export async function fetchRealSatelliteScene(
               slope_degrees: geeData.slope_degrees,
               annual_rainfall_mm: geeData.annual_rainfall_mm,
               lst_temp_celsius: geeData.lst_temp_celsius,
+              zoning: geeData.zoning,
               minNdvi: geeData.min_ndvi,
               maxNdvi: geeData.max_ndvi,
               isRealData: true,
