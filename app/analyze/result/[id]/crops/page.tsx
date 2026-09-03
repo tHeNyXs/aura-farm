@@ -23,7 +23,9 @@ export async function generateMetadata({
       fallbackPoly = JSON.parse(decodeURIComponent(sp.poly));
     } catch {}
   }
-  const { result } = getAnalysisById(id, fallbackPoly);
+  const analysis = await getAnalysisById(id, fallbackPoly);
+  if (!analysis) return {};
+  const { result } = analysis;
   return {
     title: `พืชแนะนำสำหรับ: ${result.location_name} — Aura Farm`,
     description: "รายชื่อสายพันธุ์พืชที่เหมาะสมที่สุดตามผลการประเมินดาวเทียม 5 มิติและกรมพัฒนาที่ดิน",
@@ -39,11 +41,12 @@ export default async function CropRecommendationsPage({ params, searchParams }: 
       fallbackPoly = JSON.parse(decodeURIComponent(sp.poly));
     } catch {}
   }
-  const { result: analysis, rankedCrops } = getAnalysisById(id, fallbackPoly);
+  const storedAnalysis = await getAnalysisById(id, fallbackPoly);
 
-  if (!analysis) {
+  if (!storedAnalysis) {
     notFound();
   }
+  const { result: analysis, rankedCrops } = storedAnalysis;
 
   return (
     <div className="flex flex-col min-h-screen bg-[#FDFBF7] text-[#142B18]">

@@ -24,7 +24,9 @@ export async function generateMetadata({
       fallbackPoly = JSON.parse(decodeURIComponent(sp.poly));
     } catch {}
   }
-  const { result } = getAnalysisById(id, fallbackPoly);
+  const analysis = await getAnalysisById(id, fallbackPoly);
+  if (!analysis) return {};
+  const { result } = analysis;
   return {
     title: `ผลการวิเคราะห์: ${result.location_name} — Aura Farm`,
     description: result.insight_text,
@@ -40,11 +42,12 @@ export default async function AnalysisResultPage({ params, searchParams }: PageP
       fallbackPoly = JSON.parse(decodeURIComponent(sp.poly));
     } catch {}
   }
-  const { result: data, rankedCrops } = getAnalysisById(id, fallbackPoly);
+  const analysis = await getAnalysisById(id, fallbackPoly);
 
-  if (!data) {
+  if (!analysis) {
     notFound();
   }
+  const { result: data, rankedCrops } = analysis;
 
   const s1Crops = rankedCrops.filter((c) => c.fao_class === "S1");
   const s2Crops = rankedCrops.filter((c) => c.fao_class === "S2");
