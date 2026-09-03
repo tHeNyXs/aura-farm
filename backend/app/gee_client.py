@@ -69,7 +69,7 @@ def initialize_gee() -> bool:
             logger.info("GEE Authenticated successfully with GEE_SERVICE_ACCOUNT_JSON env var!")
             return True
         except Exception as sa_env_err:
-            logger.warning(f"GEE init from env var failed: {sa_env_err}")
+            logger.warning(f"GEE init from env var failed: {sa_env_err}"); init_error_message = str(sa_env_err)
 
     # 3. Fallback to Service Account JSON key file
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -303,4 +303,5 @@ def fetch_gee_layers(polygon: List[List[float]], days_history: int = 180) -> Dic
         "area_rai": area_rai,
         "area_sqm": area_sqm
     }
+
 
