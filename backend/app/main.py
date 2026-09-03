@@ -144,6 +144,7 @@ async def evaluate_land_parcel(req: EvaluateRequest):
             "cloud_cover_pct": 12.5,
             "satellite": "Sentinel-2 L2A (10m), Sentinel-1 SAR, SRTM DEM, CHIRPS, MODIS & ESA WorldCover",
             "sar_vv_db": gee_data["sar_vv_db"],
+            "soil_moisture_pct": gee_data["soil_moisture_pct"],
             "elevation_m": gee_data["elevation_m"],
             "slope_degrees": gee_data["slope_degrees"],
             "annual_rainfall_mm": gee_data["annual_rainfall_mm"],
