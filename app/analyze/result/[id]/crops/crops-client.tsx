@@ -12,9 +12,8 @@ interface CropsClientProps {
 const CATEGORIES = [
   "ทั้งหมด",
   "พืชไร่ / ธัญพืช",
-  "ไม้ผลเศรษฐกิจ",
   "ไม้ยืนต้น / อุตสาหกรรม",
-  "พืชผัก / สมุนไพร",
+  "ไม้ผลเศรษฐกิจ",
 ] as const;
 
 export default function CropsClient({ analysis, crops }: CropsClientProps) {
@@ -216,7 +215,7 @@ export default function CropsClient({ analysis, crops }: CropsClientProps) {
             }}
             className="mt-2 px-6 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-xl cursor-pointer shadow-xs transition-colors"
           >
-            แสดงพืชทั้งหมด (40 ชนิด)
+            แสดงพืชทั้งหมด (15 ชนิด)
           </button>
         </div>
       ) : (

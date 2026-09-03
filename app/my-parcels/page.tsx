@@ -116,7 +116,7 @@ export default function MyParcelsPage() {
             <span className="text-xs text-[#5D7060] font-medium">ระบบประเมินผล</span>
             <div className="flex items-baseline gap-1.5 mt-1">
               <span className="font-heading font-black text-xl text-emerald-900">
-                40 ชนิดพืช
+                15 ชนิดพืช
               </span>
               <span className="text-xs font-bold text-emerald-700">LDD Matrix</span>
             </div>
@@ -233,7 +233,7 @@ export default function MyParcelsPage() {
                     href={`/analyze/result/${parcel.id}/crops`}
                     className="w-full py-2 bg-white hover:bg-emerald-50 text-emerald-950 border border-emerald-200 text-xs font-semibold rounded-xl text-center transition-all cursor-pointer"
                   >
-                    🌾 ดูความเหมาะสม 40 พืช
+                    🌾 ดูความเหมาะสม 15 พืชหลัก
                   </Link>
                 </div>
               </div>
