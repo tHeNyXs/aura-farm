@@ -60,3 +60,6 @@ credentials.json
 # Source and generated GIS data are provisioned outside Git.
 /data/
 /backend/data/
+
+# One-time LDD source archive used only for publishing a GitHub Release asset.
+/ldd-zoning-source.zip
