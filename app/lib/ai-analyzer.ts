@@ -158,7 +158,11 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
   const mndwiValue = input.real_satellite?.mndwi_value;
   const isWaterBody =
     input.real_satellite?.land_use_code === 80 ||
-    (mndwiValue !== undefined && mndwiValue > 0.15 && ndviValue < 0.15);
+    (mndwiValue !== undefined && mndwiValue > 0.10 && ndviValue < 0.10) ||
+    // Fallback spectral rule when the composite's MNDWI is unavailable or
+    // diluted at an edge pixel: open water is dark in NIR (low NDVI) and is
+    // not bright in SWIR like the built-up hard-mask signature.
+    (ndviValue < 0.05 && ndbiValue < 0.10);
 
   // 4. Live Satellite Elevation & Slope (SRTM DEM 30m)
   const elevationAmsl = input.real_elevation?.elevationAmsl ?? (regionInfo.region === "north" ? 310 : 15);
