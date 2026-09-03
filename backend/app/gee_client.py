@@ -171,6 +171,9 @@ def fetch_gee_layers(polygon: List[List[float]], days_history: int = 180) -> Dic
         raise ValueError(f"ขนาดแปลงที่ดิน ({area_rai} ไร่) เกินเกณฑ์สูงสุด 200 ไร่ กรุณาแบ่งเป็นแปลงย่อย")
 
     reduce_geom = farm_poly.buffer(25)
+    # Coarser satellite products need a sampling footprint at least as large as a pixel.
+    rainfall_geom = farm_poly.buffer(5000)  # CHIRPS: ~5 km pixels
+    temperature_geom = farm_poly.buffer(1000)  # MODIS LST: ~1 km pixels
 
     def require_stat(stats: Dict[str, Any], key: str, dataset: str) -> float:
         value = stats.get(key) if stats else None
@@ -266,19 +269,19 @@ def fetch_gee_layers(polygon: List[List[float]], days_history: int = 180) -> Dic
 
     # 5. CHIRPS Daily Rainfall (~5km)
     chirps = (ee.ImageCollection('UCSB-CHG/CHIRPS/DAILY')
-              .filterBounds(reduce_geom)
+              .filterBounds(rainfall_geom)
               .filterDate(f'{end_date.year - 1}-01-01', f'{end_date.year - 1}-12-31')
               .sum())
-    rain_stats = chirps.reduceRegion(reducer=ee.Reducer.mean(), geometry=reduce_geom, scale=5000, tileScale=4).getInfo()
+    rain_stats = chirps.reduceRegion(reducer=ee.Reducer.mean(), geometry=rainfall_geom, scale=5000, tileScale=4).getInfo()
     annual_rain = require_stat(rain_stats, 'precipitation', 'CHIRPS rainfall')
 
     # 6. MODIS LST Surface Temperature (1km)
     modis = (ee.ImageCollection('MODIS/061/MOD11A2')
-             .filterBounds(reduce_geom)
+             .filterBounds(temperature_geom)
              .filterDate(start_str, end_str)
              .select('LST_Day_1km')
              .median())
-    lst_stats = modis.reduceRegion(reducer=ee.Reducer.mean(), geometry=reduce_geom, scale=1000, tileScale=4).getInfo()
+    lst_stats = modis.reduceRegion(reducer=ee.Reducer.mean(), geometry=temperature_geom, scale=1000, tileScale=4).getInfo()
     lst_temp = require_stat(lst_stats, 'LST_Day_1km', 'MODIS land-surface temperature') * 0.02 - 273.15
 
     return {
