@@ -61,7 +61,7 @@ def initialize_gee() -> bool:
             sa_project_id = key_data.get("project_id") or project_id
             credentials = ee.ServiceAccountCredentials(
                 email=client_email,
-                key_data=key_data
+                key_data=sa_json_env.strip()
             )
             ee.Initialize(credentials, project=sa_project_id)
             gee_initialized = True
@@ -303,3 +303,4 @@ def fetch_gee_layers(polygon: List[List[float]], days_history: int = 180) -> Dic
         "area_rai": area_rai,
         "area_sqm": area_sqm
     }
+
