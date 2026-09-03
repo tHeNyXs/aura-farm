@@ -4,6 +4,8 @@ Aura Farm v2.0 - FastAPI Main Orchestration Engine
 """
 
 import logging
+import asyncio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -15,15 +17,28 @@ from app.ndbi_mask import evaluate_ndbi_hard_mask
 from app.suitability_level1 import calculate_level1_suitability
 from app.crop_filter_level2 import filter_crops
 from app.oae_validation_level3 import validate_with_oae
+from app.zoning_service import lookup_zoning
+from app.zoning_bootstrap import provision_zoning_database
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("main_orchestrator")
 
+zoning_bootstrap_status: Dict[str, Any] = {"available": False, "state": "starting"}
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    global zoning_bootstrap_status
+    zoning_bootstrap_status = await asyncio.to_thread(provision_zoning_database)
+    yield
+
+
 app = FastAPI(
     title="Aura Farm v2.0 - 3-Level GIS Multi-Criteria AI Land Evaluation Engine",
     version="2.0.0",
-    description="Live Satellite Analysis Engine powered by Google Earth Engine, Layer 9 NDBI Hard Mask, AHP 8x8 Matrix & OAE Yield Benchmark"
+    description="Live Satellite Analysis Engine powered by Google Earth Engine, Layer 9 NDBI Hard Mask, AHP 8x8 Matrix & OAE Yield Benchmark",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -46,6 +61,10 @@ class HealthResponse(BaseModel):
     gee_authenticated: bool
     error: Optional[str] = None
     timestamp: str
+    zoning: Dict[str, Any]
+
+class ZoningRequest(BaseModel):
+    polygon: List[List[float]] = Field(..., description="List of [lat, lng] coordinates")
 
 @app.get("/health", response_model=HealthResponse)
 @app.get("/api/v1/status", response_model=HealthResponse)
@@ -58,8 +77,19 @@ async def health_check():
         status="online",
         gee_authenticated=status_data["gee_authenticated"],
         error=status_data.get("error"),
-        timestamp=status_data["timestamp"]
+        timestamp=status_data["timestamp"],
+        zoning=zoning_bootstrap_status,
     )
+
+@app.post("/api/v1/zoning-overlay")
+async def zoning_overlay(req: ZoningRequest):
+    """Overlay a parcel with official LDD Zoning polygons (when installed)."""
+    if len(req.polygon) < 3:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Polygon geometry ไม่ถูกต้อง")
+    try:
+        return lookup_zoning(req.polygon)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
 
 @app.post("/evaluate")
 @app.post("/api/v1/analyze-gee")
@@ -127,6 +157,7 @@ async def evaluate_land_parcel(req: EvaluateRequest):
             soil_ph=req.soil_ph or 6.5,
             is_water=is_water_body,
         )
+        zoning_result = lookup_zoning(req.polygon)
 
         # Step 5: Level 3 - OAE Benchmark Yield Validation
         top_crop = level2_crops[0] if level2_crops else {"name": "ข้าวหอมมะลิ (Hom Mali Rice)", "grade": level1_result["grade"]}
@@ -153,6 +184,7 @@ async def evaluate_land_parcel(req: EvaluateRequest):
             "land_use_label": gee_data["land_use_label"],
             "is_built_up": ndbi_result["is_built_up"],
             "is_water": is_water_body,
+            "zoning": zoning_result,
             "capture_date": datetime.now().strftime("%Y-%m-%d"),
             "level1": level1_result,
             "level2": level2_crops,
