@@ -39,8 +39,8 @@ This repository includes a one-time GitHub Action at
 `.github/workflows/build-ldd-zoning.yml` so the conversion does not require Python on
 your computer. Create a temporary **source** release and upload one ZIP that contains
 the original folders (`Cassava`, `Rice`, `Sugarcane`, and the other crop folders).
-Then open **Actions → Build LDD Zoning release → Run workflow**, paste the direct
-download URL of that ZIP, and use a new release tag such as `ldd-zoning-v1`.
+Then open **Actions → Build LDD Zoning release → Run workflow**, enter the source
+release tag `ldd-zoning-source-v1`, and use a new result tag such as `ldd-zoning-v1`.
 
 The Action imports every province available in all 13 configured crops, records the
 known malformed Sugarcane archive as an import issue, compresses the database, and

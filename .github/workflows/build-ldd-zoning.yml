@@ -3,9 +3,10 @@ name: Build LDD Zoning release
 on:
   workflow_dispatch:
     inputs:
-      source_asset_url:
-        description: Direct URL of the ZIP containing the complete LDD Zoning source folders
+      source_release_tag:
+        description: Release tag that contains ldd-zoning-source.zip in this repository
         required: true
+        default: ldd-zoning-source-v1
         type: string
       release_tag:
         description: New GitHub Release tag for the generated database
@@ -36,17 +37,21 @@ jobs:
 
       - name: Download and unpack official LDD source
         env:
-          SOURCE_ASSET_URL: ${{ inputs.source_asset_url }}
+          SOURCE_RELEASE_TAG: ${{ inputs.source_release_tag }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          SOURCE_URL="$(printf '%s' "$SOURCE_ASSET_URL" | tr -d '[:space:]')"
-          case "$SOURCE_URL" in
-            https://github.com/*/releases/download/*) ;;
-            *)
-              echo "The source_asset_url must be the direct GitHub Release download link."
+          case "$SOURCE_RELEASE_TAG" in
+            *[!A-Za-z0-9._-]*|'')
+              echo "The source release tag contains unsupported characters."
               exit 1
               ;;
+            *) ;;
           esac
-          curl --fail --location --retry 3 --retry-delay 5 --url "$SOURCE_URL" --output /tmp/ldd-zoning-source.zip
+          gh release download "$SOURCE_RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "ldd-zoning-source.zip" \
+            --dir /tmp
+          test -f /tmp/ldd-zoning-source.zip
           unzip -q /tmp/ldd-zoning-source.zip -d /tmp/ldd-zoning-source
           SOURCE_ROOT="$(find /tmp/ldd-zoning-source -type d -name Cassava -print -quit | xargs -r dirname)"
           test -n "$SOURCE_ROOT"
