@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeLandParcel } from "@/app/lib/ai-analyzer";
 import { saveAnalysisResult } from "@/app/lib/analysis-store";
-import { fetchRealClimateData } from "@/app/lib/services/climate-service";
-import { fetchRealElevationAndSlope } from "@/app/lib/services/elevation-service";
 import { fetchRealSatelliteScene } from "@/app/lib/services/satellite-service";
-import { fetchRealSoilGridsData } from "@/app/lib/services/soil-service";
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,7 +25,7 @@ export async function POST(req: NextRequest) {
     const generatedId = `geo-${avgLat.toFixed(4)}_${avgLng.toFixed(4)}_${Date.now()}`;
 
     // Execute Live Geospatial & Remote Sensing APIs concurrently
-    const [osmResResult, climateResult, elevationResult, satelliteResult, soilResult] = await Promise.allSettled([
+    const [osmResResult, satelliteResult] = await Promise.allSettled([
       // 1. High-zoom OSM Land-use & Building Reverse Geocode (zoom=18)
       (async () => {
         const controller = new AbortController();
@@ -45,17 +42,8 @@ export async function POST(req: NextRequest) {
         return null;
       })(),
 
-      // 2. Real Climate API (Open-Meteo & ERA5)
-      fetchRealClimateData(avgLat, avgLng),
-
-      // 3. Real Elevation & Slope API (Open-Elevation / DEM)
-      fetchRealElevationAndSlope(polygon),
-
-      // 4. Real Satellite Scene STAC / GEE API (Sentinel-2, Sentinel-1, DEM, CHIRPS, MODIS, WorldCover)
+      // Live GEE satellite layers: Sentinel-2, Sentinel-1, DEM, CHIRPS, MODIS, WorldCover
       fetchRealSatelliteScene(avgLat, avgLng, polygon),
-
-      // 5. SoilGrids REST API (Soil pH & texture properties)
-      fetchRealSoilGridsData(avgLat, avgLng),
     ]);
 
     const realSatellite = satelliteResult.status === "fulfilled" ? satelliteResult.value : undefined;
@@ -101,8 +89,31 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const realClimate = climateResult.status === "fulfilled" ? climateResult.value : undefined;
-    const realElevation = elevationResult.status === "fulfilled" ? elevationResult.value : undefined;
+    const { annual_rainfall_mm, lst_temp_celsius, soil_moisture_pct, elevation_m, slope_degrees } = realSatellite;
+    if (
+      annual_rainfall_mm === undefined ||
+      lst_temp_celsius === undefined ||
+      soil_moisture_pct === undefined ||
+      elevation_m === undefined ||
+      slope_degrees === undefined
+    ) {
+      return NextResponse.json(
+        { error: "ข้อมูลชั้นวิเคราะห์จากดาวเทียมไม่ครบ จึงไม่สามารถประเมินผลได้" },
+        { status: 503 }
+      );
+    }
+
+    const realClimate = {
+      annualRainfallMm: annual_rainfall_mm,
+      averageTempCelsius: lst_temp_celsius,
+      surfaceSoilMoisturePct: soil_moisture_pct,
+      isRealData: true,
+    };
+    const realElevation = {
+      elevationAmsl: elevation_m,
+      slopeDegrees: slope_degrees,
+      isRealData: true,
+    };
 
     // Execute 2-Level AI Land Evaluation Engine
     const { result, rankedCrops } = analyzeLandParcel({

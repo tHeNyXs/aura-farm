@@ -172,27 +172,27 @@ def fetch_gee_layers(polygon: List[List[float]], days_history: int = 180) -> Dic
 
     reduce_geom = farm_poly.buffer(25)
 
+    def require_stat(stats: Dict[str, Any], key: str, dataset: str) -> float:
+        value = stats.get(key) if stats else None
+        if value is None:
+            raise RuntimeError(f"ไม่มีข้อมูล {dataset} ที่ใช้วิเคราะห์แปลงนี้")
+        return float(value)
+
     end_date = datetime.now()
     start_date = end_date - timedelta(days=days_history)
     start_str = start_date.strftime('%Y-%m-%d')
     end_str = end_date.strftime('%Y-%m-%d')
 
     # 1. ESA WorldCover v200 (10m)
-    lu_code = 40
-    lu_label = "Cropland"
-    try:
-        wc = ee.ImageCollection('ESA/WorldCover/v200').first().select('Map')
-        wc_stats = wc.reduceRegion(reducer=ee.Reducer.mode(), geometry=reduce_geom, scale=10, tileScale=4).getInfo()
-        if 'Map' in wc_stats and wc_stats['Map'] is not None:
-            lu_code = int(wc_stats['Map'])
-            labels = {
-                10: "Tree cover", 20: "Shrubland", 30: "Grassland", 40: "Cropland",
-                50: "Built-up", 60: "Bare / sparse vegetation", 80: "Permanent water bodies",
-                90: "Herbaceous wetland", 95: "Mangroves"
-            }
-            lu_label = labels.get(lu_code, "Cropland")
-    except Exception as e:
-        logger.warning(f"ESA WorldCover fetch error: {e}")
+    wc = ee.ImageCollection('ESA/WorldCover/v200').first().select('Map')
+    wc_stats = wc.reduceRegion(reducer=ee.Reducer.mode(), geometry=reduce_geom, scale=10, tileScale=4).getInfo()
+    lu_code = int(require_stat(wc_stats, 'Map', 'ESA WorldCover'))
+    labels = {
+        10: "Tree cover", 20: "Shrubland", 30: "Grassland", 40: "Cropland",
+        50: "Built-up", 60: "Bare / sparse vegetation", 80: "Permanent water bodies",
+        90: "Herbaceous wetland", 95: "Mangroves"
+    }
+    lu_label = labels.get(lu_code, "Unknown land cover")
 
     # 2. Sentinel-2 L2A (10m) Bands: B3 (Green), B8 (NIR), B4 (Red), B11 (SWIR1)
     s2_collection = (
@@ -209,6 +209,8 @@ def fetch_gee_layers(polygon: List[List[float]], days_history: int = 180) -> Dic
             .filterDate(start_str, end_str)
             .limit(20)
         )
+    if s2_collection.size().getInfo() == 0:
+        raise RuntimeError("ไม่พบภาพ Sentinel-2 สำหรับแปลงนี้ในช่วงเวลาที่เลือก")
 
     masked_collection = s2_collection.map(mask_s2_clouds)
     s2_median = masked_collection.median()
@@ -222,76 +224,62 @@ def fetch_gee_layers(polygon: List[List[float]], days_history: int = 180) -> Dic
         maxPixels=1e8
     ).getInfo()
 
-    b3_val = float(bands_stats.get('B3', 0.10) if bands_stats.get('B3') is not None else 0.10)
-    b8_val = float(bands_stats.get('B8', 0.25) if bands_stats.get('B8') is not None else 0.25)
-    b4_val = float(bands_stats.get('B4', 0.08) if bands_stats.get('B4') is not None else 0.08)
-    b11_val = float(bands_stats.get('B11', 0.15) if bands_stats.get('B11') is not None else 0.15)
+    b3_val = require_stat(bands_stats, 'B3', 'Sentinel-2 Green band')
+    b8_val = require_stat(bands_stats, 'B8', 'Sentinel-2 NIR band')
+    b4_val = require_stat(bands_stats, 'B4', 'Sentinel-2 Red band')
+    b11_val = require_stat(bands_stats, 'B11', 'Sentinel-2 SWIR band')
 
     # MNDWI separates open water from dark built-up surfaces more reliably than NDVI alone.
     mndwi_denominator = b3_val + b11_val
-    mndwi_value = (b3_val - b11_val) / mndwi_denominator if mndwi_denominator else 0.0
+    if abs(mndwi_denominator) < 1e-6:
+        raise RuntimeError("ไม่สามารถคำนวณ MNDWI จากภาพ Sentinel-2 ได้")
+    mndwi_value = (b3_val - b11_val) / mndwi_denominator
 
     # 3. Elevation & Slope (USGS SRTM 30m / Copernicus DEM 30m)
-    elev_m = 15.0
-    slope_deg = 1.5
     try:
-        try:
-            dem = ee.Image('USGS/SRTMGL1_003')
-        except Exception:
-            dem = ee.Image('COPERNICUS/DEM/GLO30').select('DEM')
-
+        dem = ee.Image('USGS/SRTMGL1_003')
         slope = ee.Terrain.slope(dem)
         dem_stats = dem.reduceRegion(reducer=ee.Reducer.mean(), geometry=reduce_geom, scale=30, tileScale=4).getInfo()
         slope_stats = slope.reduceRegion(reducer=ee.Reducer.mean(), geometry=reduce_geom, scale=30, tileScale=4).getInfo()
-        elev_m = float(dem_stats.get('elevation', dem_stats.get('DEM', 15.0)) or 15.0)
-        slope_deg = float(slope_stats.get('slope', 1.5) or 1.5)
-    except Exception as e:
-        logger.warning(f"DEM fetch error: {e}")
+        elev_m = require_stat(dem_stats, 'elevation', 'SRTM elevation')
+        slope_deg = require_stat(slope_stats, 'slope', 'SRTM slope')
+    except Exception:
+        dem = ee.Image('COPERNICUS/DEM/GLO30').select('DEM')
+        slope = ee.Terrain.slope(dem)
+        dem_stats = dem.reduceRegion(reducer=ee.Reducer.mean(), geometry=reduce_geom, scale=30, tileScale=4).getInfo()
+        slope_stats = slope.reduceRegion(reducer=ee.Reducer.mean(), geometry=reduce_geom, scale=30, tileScale=4).getInfo()
+        elev_m = require_stat(dem_stats, 'DEM', 'Copernicus DEM elevation')
+        slope_deg = require_stat(slope_stats, 'slope', 'Copernicus DEM slope')
 
     # 4. Sentinel-1 SAR VV Backscatter (10m)
-    sar_val = -10.0
-    try:
-        s1 = (ee.ImageCollection('COPERNICUS/S1_GRD')
-              .filterBounds(reduce_geom)
-              .filterDate(start_str, end_str)
-              .filter(ee.Filter.eq('instrumentMode', 'IW'))
-              .select('VV')
-              .median())
-        sar_stats = s1.reduceRegion(reducer=ee.Reducer.mean(), geometry=reduce_geom, scale=10, tileScale=4).getInfo()
-        if 'VV' in sar_stats and sar_stats['VV'] is not None:
-            sar_val = float(sar_stats['VV'])
-    except Exception as e:
-        logger.warning(f"SAR fetch error: {e}")
+    s1 = (ee.ImageCollection('COPERNICUS/S1_GRD')
+          .filterBounds(reduce_geom)
+          .filterDate(start_str, end_str)
+          .filter(ee.Filter.eq('instrumentMode', 'IW'))
+          .select('VV')
+          .median())
+    sar_stats = s1.reduceRegion(reducer=ee.Reducer.mean(), geometry=reduce_geom, scale=10, tileScale=4).getInfo()
+    sar_val = require_stat(sar_stats, 'VV', 'Sentinel-1 SAR')
 
     # Convert SAR dB (-25dB to -5dB) -> estimated surface soil moisture % (20% to 85%)
     soil_moisture_pct = round(max(20.0, min(85.0, 85.0 + (sar_val + 5.0) * 3.25)), 1)
 
     # 5. CHIRPS Daily Rainfall (~5km)
-    annual_rain = 1280.0
-    try:
-        chirps = (ee.ImageCollection('UCSB-CHG/CHIRPS/DAILY')
-                  .filterBounds(reduce_geom)
-                  .filterDate(f'{end_date.year - 1}-01-01', f'{end_date.year - 1}-12-31')
-                  .sum())
-        rain_stats = chirps.reduceRegion(reducer=ee.Reducer.mean(), geometry=reduce_geom, scale=5000, tileScale=4).getInfo()
-        if 'precipitation' in rain_stats and rain_stats['precipitation'] is not None:
-            annual_rain = float(rain_stats['precipitation'])
-    except Exception as e:
-        logger.warning(f"CHIRPS fetch error: {e}")
+    chirps = (ee.ImageCollection('UCSB-CHG/CHIRPS/DAILY')
+              .filterBounds(reduce_geom)
+              .filterDate(f'{end_date.year - 1}-01-01', f'{end_date.year - 1}-12-31')
+              .sum())
+    rain_stats = chirps.reduceRegion(reducer=ee.Reducer.mean(), geometry=reduce_geom, scale=5000, tileScale=4).getInfo()
+    annual_rain = require_stat(rain_stats, 'precipitation', 'CHIRPS rainfall')
 
     # 6. MODIS LST Surface Temperature (1km)
-    lst_temp = 30.5
-    try:
-        modis = (ee.ImageCollection('MODIS/061/MOD11A2')
-                 .filterBounds(reduce_geom)
-                 .filterDate(start_str, end_str)
-                 .select('LST_Day_1km')
-                 .median())
-        lst_stats = modis.reduceRegion(reducer=ee.Reducer.mean(), geometry=reduce_geom, scale=1000, tileScale=4).getInfo()
-        if 'LST_Day_1km' in lst_stats and lst_stats['LST_Day_1km'] is not None:
-            lst_temp = float(lst_stats['LST_Day_1km']) * 0.02 - 273.15
-    except Exception as e:
-        logger.warning(f"MODIS fetch error: {e}")
+    modis = (ee.ImageCollection('MODIS/061/MOD11A2')
+             .filterBounds(reduce_geom)
+             .filterDate(start_str, end_str)
+             .select('LST_Day_1km')
+             .median())
+    lst_stats = modis.reduceRegion(reducer=ee.Reducer.mean(), geometry=reduce_geom, scale=1000, tileScale=4).getInfo()
+    lst_temp = require_stat(lst_stats, 'LST_Day_1km', 'MODIS land-surface temperature') * 0.02 - 273.15
 
     return {
         "b3_green": round(b3_val, 4),

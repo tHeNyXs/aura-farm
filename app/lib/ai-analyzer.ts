@@ -49,6 +49,11 @@ export interface AIAnalysisInput {
     mndwi_value?: number;
     land_use_code?: number;
     land_use_label?: string;
+    soil_moisture_pct?: number;
+    elevation_m?: number;
+    slope_degrees?: number;
+    annual_rainfall_mm?: number;
+    lst_temp_celsius?: number;
     minNdvi?: number;
     maxNdvi?: number;
     isRealData?: boolean;

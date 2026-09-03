@@ -12,6 +12,11 @@ export interface RealSatelliteData {
   mndwi_value?: number;
   land_use_code?: number;
   land_use_label?: string;
+  soil_moisture_pct?: number;
+  elevation_m?: number;
+  slope_degrees?: number;
+  annual_rainfall_mm?: number;
+  lst_temp_celsius?: number;
   minNdvi?: number;
   maxNdvi?: number;
   isRealData: boolean;
@@ -59,6 +64,11 @@ export async function fetchRealSatelliteScene(
               mndwi_value: geeData.mndwi_value,
               land_use_code: geeData.land_use_code,
               land_use_label: geeData.land_use_label,
+              soil_moisture_pct: geeData.soil_moisture_pct,
+              elevation_m: geeData.elevation_m,
+              slope_degrees: geeData.slope_degrees,
+              annual_rainfall_mm: geeData.annual_rainfall_mm,
+              lst_temp_celsius: geeData.lst_temp_celsius,
               minNdvi: geeData.min_ndvi,
               maxNdvi: geeData.max_ndvi,
               isRealData: true,
