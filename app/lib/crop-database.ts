@@ -639,6 +639,7 @@ export interface CropEvaluationParams {
   elevationAmsl?: number;
   soilGroupId?: number;
   isBuiltUp?: boolean;
+  isWaterBody?: boolean;
 }
 
 /**
@@ -658,6 +659,19 @@ export function evaluateCropByLDDMatrix(
 } {
   const limitingFactors: string[] = [];
   const isBuiltUp = params.isBuiltUp ?? false;
+  const isWaterBody = params.isWaterBody ?? params.soilGroupId === 98;
+
+  if (isWaterBody) {
+    const reason = "พื้นที่เป็นแหล่งน้ำหรือพื้นที่ชุ่มน้ำถาวร ไม่มีหน้าดินสำหรับการเพาะปลูกพืชบก";
+    return {
+      fao_class: "N",
+      fao_label: "ไม่แนะนำ (N)",
+      match_percentage: 0,
+      limiting_factors: [reason],
+      is_masked_out: true,
+      mask_reason: reason,
+    };
+  }
 
   if (isBuiltUp) {
     return {

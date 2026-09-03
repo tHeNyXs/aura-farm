@@ -194,7 +194,7 @@ def fetch_gee_layers(polygon: List[List[float]], days_history: int = 180) -> Dic
     except Exception as e:
         logger.warning(f"ESA WorldCover fetch error: {e}")
 
-    # 2. Sentinel-2 L2A (10m) Bands: B8 (NIR), B4 (Red), B11 (SWIR1)
+    # 2. Sentinel-2 L2A (10m) Bands: B3 (Green), B8 (NIR), B4 (Red), B11 (SWIR1)
     s2_collection = (
         ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
         .filterBounds(reduce_geom)
@@ -214,7 +214,7 @@ def fetch_gee_layers(polygon: List[List[float]], days_history: int = 180) -> Dic
     s2_median = masked_collection.median()
 
     # Compute mean spectral band values
-    bands_stats = s2_median.select(['B8', 'B4', 'B11']).reduceRegion(
+    bands_stats = s2_median.select(['B3', 'B8', 'B4', 'B11']).reduceRegion(
         reducer=ee.Reducer.mean(),
         geometry=reduce_geom,
         scale=10,
@@ -222,9 +222,14 @@ def fetch_gee_layers(polygon: List[List[float]], days_history: int = 180) -> Dic
         maxPixels=1e8
     ).getInfo()
 
+    b3_val = float(bands_stats.get('B3', 0.10) if bands_stats.get('B3') is not None else 0.10)
     b8_val = float(bands_stats.get('B8', 0.25) if bands_stats.get('B8') is not None else 0.25)
     b4_val = float(bands_stats.get('B4', 0.08) if bands_stats.get('B4') is not None else 0.08)
     b11_val = float(bands_stats.get('B11', 0.15) if bands_stats.get('B11') is not None else 0.15)
+
+    # MNDWI separates open water from dark built-up surfaces more reliably than NDVI alone.
+    mndwi_denominator = b3_val + b11_val
+    mndwi_value = (b3_val - b11_val) / mndwi_denominator if mndwi_denominator else 0.0
 
     # 3. Elevation & Slope (USGS SRTM 30m / Copernicus DEM 30m)
     elev_m = 15.0
@@ -289,6 +294,7 @@ def fetch_gee_layers(polygon: List[List[float]], days_history: int = 180) -> Dic
         logger.warning(f"MODIS fetch error: {e}")
 
     return {
+        "b3_green": round(b3_val, 4),
         "b8_nir": round(b8_val, 4),
         "b4_red": round(b4_val, 4),
         "b11_swir": round(b11_val, 4),
@@ -300,6 +306,7 @@ def fetch_gee_layers(polygon: List[List[float]], days_history: int = 180) -> Dic
         "lst_temp_celsius": round(lst_temp, 1),
         "land_use_code": lu_code,
         "land_use_label": lu_label,
+        "mndwi_value": round(mndwi_value, 3),
         "area_rai": area_rai,
         "area_sqm": area_sqm
     }

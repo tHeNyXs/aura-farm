@@ -46,6 +46,9 @@ export interface AIAnalysisInput {
     captureDate: string;
     estimatedNdvi: number;
     ndbi_value?: number;
+    mndwi_value?: number;
+    land_use_code?: number;
+    land_use_label?: string;
     minNdvi?: number;
     maxNdvi?: number;
     isRealData?: boolean;
@@ -128,7 +131,7 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
   const turfCoords = coords.map(([lat, lng]) => [lng, lat]);
   if (
     turfCoords[0][0] !== turfCoords[turfCoords.length - 1][0] ||
-    turfCoords[0][1] !== turfCoords[turfCoords.length - 1][0]
+    turfCoords[0][1] !== turfCoords[turfCoords.length - 1][1]
   ) {
     turfCoords.push(turfCoords[0]);
   }
@@ -147,6 +150,10 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
   // 3. Live Satellite Optical NDVI (Sentinel-2 10m) & Layer 9 NDBI
   const ndviValue = input.real_satellite?.estimatedNdvi ?? 0.68;
   const ndbiValue = input.real_satellite?.ndbi_value ?? (ndviValue < 0.20 ? 0.15 : -0.15);
+  const mndwiValue = input.real_satellite?.mndwi_value;
+  const isWaterBody =
+    input.real_satellite?.land_use_code === 80 ||
+    (mndwiValue !== undefined && mndwiValue > 0.15 && ndviValue < 0.15);
 
   // 4. Live Satellite Elevation & Slope (SRTM DEM 30m)
   const elevationAmsl = input.real_elevation?.elevationAmsl ?? (regionInfo.region === "north" ? 310 : 15);
@@ -158,7 +165,7 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
   const soilMoisture = input.real_climate?.surfaceSoilMoisturePct ?? 58;
 
   // 6. Soil Group & Soil pH (LDD & SoilGrids)
-  const soilGroup = resolveSoilGroup(centerLat, centerLng, slopeDegrees, elevationAmsl, soilMoisture, ndviValue);
+  const soilGroup = resolveSoilGroup(centerLat, centerLng, slopeDegrees, elevationAmsl, soilMoisture, ndviValue, isWaterBody);
   const soilPh = Number(((soilGroup.phRange[0] + soilGroup.phRange[1]) / 2).toFixed(1));
 
   // 6-Month NDVI seasonal trend
@@ -181,13 +188,15 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
     surfaceTempCelsius: surfaceTemp,
     ndviValue,
     ndbiValue,
-    landUseClass: "Cropland",
+    landUseClass: isWaterBody ? "Permanent water bodies" : input.real_satellite?.land_use_label || "Cropland",
     soilMoisturePct: soilMoisture,
     isBuiltUpOrRoof: false,
+    isWaterBody,
   });
 
   const isBuiltUpMasked = Boolean(overallLevel1.is_built_up_masked);
-  const landUseClass = isBuiltUpMasked ? "Built-up" : "Cropland";
+  const isWaterMasked = Boolean(overallLevel1.is_water_masked);
+  const landUseClass = isWaterMasked ? "Permanent water bodies" : isBuiltUpMasked ? "Built-up" : input.real_satellite?.land_use_label || "Cropland";
 
   // =========================================================
   // LEVEL 2: Crop-Specific Suitability (Filtered by Thresholds)
@@ -215,6 +224,7 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
       elevationAmsl,
       soilGroupId: soilGroup.groupId,
       isBuiltUp: isBuiltUpMasked,
+      isWaterBody: isWaterMasked,
     });
 
     // OAE Yield Benchmark Validation
@@ -223,7 +233,9 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
       oaeValidations.push(oaeVal);
     }
 
-    const pros = isBuiltUpMasked
+    const pros = isWaterMasked
+      ? []
+      : isBuiltUpMasked
       ? ["สามารถปรับใช้เป็นระบบเกษตรในเมือง (Urban Farming) ปลูกผักกระถาง หรือสวนผักดาดฟ้า"]
       : [...crop.pros_template];
 
@@ -275,7 +287,7 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
   });
 
   const locationName =
-    input.location_name || (isBuiltUpMasked ? `พื้นที่สิ่งปลูกสร้าง/อาคาร (${rai} ไร่)` : `แปลงสำรวจ ${regionInfo.regionName} (${rai} ไร่)`);
+    input.location_name || (isWaterMasked ? `พื้นที่แหล่งน้ำ (${rai} ไร่)` : isBuiltUpMasked ? `พื้นที่สิ่งปลูกสร้าง/อาคาร (${rai} ไร่)` : `แปลงสำรวจ ${regionInfo.regionName} (${rai} ไร่)`);
   const generatedId = input.custom_id || `geo-${centerLat.toFixed(4)}_${centerLng.toFixed(4)}_${Date.now()}`;
 
   const s1Count = rankedCrops.filter((c) => c.fao_class === "S1").length;
@@ -283,13 +295,15 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
   const s3Count = rankedCrops.filter((c) => c.fao_class === "S3").length;
   const nCount = rankedCrops.filter((c) => c.fao_class === "N").length;
 
-  const insightText = isBuiltUpMasked
+  const insightText = isWaterMasked
+    ? `⚠️ พื้นที่นี้ตรวจพบเป็นแหล่งน้ำหรือพื้นที่ชุ่มน้ำถาวร${mndwiValue !== undefined ? ` (MNDWI = ${mndwiValue.toFixed(2)})` : ""} → ไม่แนะนำให้เพาะปลูกพืชบก (เกรด N)`
+    : isBuiltUpMasked
     ? `⚠️ พื้นที่นี้ตรวจพบเป็นสิ่งปลูกสร้าง (อาคารคอนกรีต: NDBI = ${ndbiValue.toFixed(2)} > 0.10, NDVI = ${ndviValue.toFixed(2)} < 0.20) → ไม่ประเมินความเหมาะสมทางการเกษตร (เกรด N)`
     : `พื้นที่นี้เป็นพืชคลุมดิน / แปลงเกษตร (NDBI = ${ndbiValue.toFixed(2)}, NDVI = ${ndviValue.toFixed(2)}) → จำแนกพืชเศรษฐกิจหลัก ${rankedCrops.length} ชนิด: พบเกรด S1 (เหมาะสมมาก) ${s1Count} ชนิด, เกรด S2 (ปานกลาง) ${s2Count} ชนิด, เกรด S3 (มีข้อจำกัด) ${s3Count} ชนิด, เกรด N (ไม่แนะนำ) ${nCount} ชนิด ประเมินตามเกณฑ์ความต้องการพืชและปัจจัยจำกัดอิง FAO (1983) & LDD`;
 
   let statusLabel: "เหมาะสมมาก" | "ปานกลาง" | "ต้องปรับปรุง" = "เหมาะสมมาก";
   let statusColor = "#6B8E5A";
-  if (overallLevel1.indexPercentage < 68 || isBuiltUpMasked) {
+  if (overallLevel1.indexPercentage < 68 || isBuiltUpMasked || isWaterMasked) {
     statusLabel = "ต้องปรับปรุง";
     statusColor = "#9B1C1C";
   } else if (overallLevel1.indexPercentage < 80) {
@@ -324,6 +338,7 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
     ndvi_value: ndviValue,
     ndbi_value: ndbiValue,
     is_built_up_masked: isBuiltUpMasked,
+    is_water_masked: isWaterMasked,
     ndvi_trend: ndviTrend,
     soil_moisture: soilMoisture,
     slope_degrees: slopeDegrees,

@@ -9,6 +9,9 @@ export interface RealSatelliteData {
   captureDate: string;
   estimatedNdvi: number;
   ndbi_value?: number;
+  mndwi_value?: number;
+  land_use_code?: number;
+  land_use_label?: string;
   minNdvi?: number;
   maxNdvi?: number;
   isRealData: boolean;
@@ -53,6 +56,9 @@ export async function fetchRealSatelliteScene(
               captureDate: geeData.capture_date || new Date().toISOString().split("T")[0],
               estimatedNdvi: geeData.mean_ndvi,
               ndbi_value: geeData.ndbi_value,
+              mndwi_value: geeData.mndwi_value,
+              land_use_code: geeData.land_use_code,
+              land_use_label: geeData.land_use_label,
               minNdvi: geeData.min_ndvi,
               maxNdvi: geeData.max_ndvi,
               isRealData: true,

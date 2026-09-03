@@ -258,16 +258,18 @@ export function resolveSoilGroup(
   slope: number,
   elevation: number,
   soilMoisture: number,
-  ndvi: number
+  ndvi: number,
+  isWaterBody = false
 ): SoilGroupInfo {
+  // A confirmed satellite water classification must take priority over low-NDVI
+  // urban detection: both water and concrete can have low NDVI values.
+  if (isWaterBody || ndvi < 0.05 || (soilMoisture > 92 && slope < 0.5)) {
+    return THAILAND_SOIL_GROUPS[98];
+  }
+
   // Urban / Built-up Area Detection
   if (isUrbanDenseArea(lat, lng) || ndvi < 0.25) {
     return THAILAND_SOIL_GROUPS[99];
-  }
-
-  // Water Body Detection
-  if (ndvi < 0.05 || (soilMoisture > 92 && slope < 0.5)) {
-    return THAILAND_SOIL_GROUPS[98];
   }
 
   // High slope / high mountain (North / South mountains)

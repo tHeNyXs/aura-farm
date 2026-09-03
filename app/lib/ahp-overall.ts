@@ -12,6 +12,7 @@ export interface LandSuitabilityInputParams {
   soilMoisturePct: number;
   irrigationScore?: number;
   isBuiltUpOrRoof?: boolean;
+  isWaterBody?: boolean;
 }
 
 /**
@@ -100,9 +101,27 @@ export function calculateLevel1OverallLandSuitability(
   const norm = normalizeCriteria(params);
 
   // ── Pre-Filter Step 3: NDBI Built-up Exclusion Layer ──────────────────────
+  const isWaterHardMasked = Boolean(params.isWaterBody);
   const isNDBIHardMasked =
     (params.ndbiValue !== undefined && params.ndbiValue > 0.10 && params.ndviValue < 0.20) ||
     Boolean(params.isBuiltUpOrRoof);
+
+  if (isWaterHardMasked) {
+    return {
+      indexScore: 0.15,
+      indexPercentage: 15,
+      fao_class: "N",
+      fao_label: "ไม่เหมาะสมอย่างยิ่ง (N) - แหล่งน้ำ",
+      ahp_weights: ahpMeta.weights,
+      consistency_ratio: ahpMeta.cr,
+      cr_passed: ahpMeta.crPassed,
+      normalized_criteria: norm,
+      ndbi_value: params.ndbiValue,
+      is_built_up_masked: false,
+      is_water_masked: true,
+      summary_th: "พื้นที่นี้ตรวจพบเป็นแหล่งน้ำหรือพื้นที่ชุ่มน้ำถาวร → ไม่ประเมินความเหมาะสมสำหรับพืชบก (เกรด N)",
+    };
+  }
 
   if (isNDBIHardMasked) {
     const ndbiDisplay = params.ndbiValue !== undefined ? params.ndbiValue.toFixed(2) : "0.15";
@@ -119,6 +138,7 @@ export function calculateLevel1OverallLandSuitability(
       normalized_criteria: norm,
       ndbi_value: params.ndbiValue ?? 0.15,
       is_built_up_masked: true,
+      is_water_masked: false,
       summary_th,
     };
   }
@@ -157,6 +177,7 @@ export function calculateLevel1OverallLandSuitability(
     normalized_criteria: norm,
     ndbi_value: params.ndbiValue,
     is_built_up_masked: false,
+    is_water_masked: false,
     summary_th,
   };
 }

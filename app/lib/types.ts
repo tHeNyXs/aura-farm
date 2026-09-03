@@ -36,6 +36,7 @@ export interface OverallLandSuitabilityLevel1 {
   summary_th: string;
   ndbi_value?: number; // Layer 9: NDBI (Pre-filter/Hard mask layer)
   is_built_up_masked?: boolean;
+  is_water_masked?: boolean;
 }
 
 export interface OAEBenchmarkValidation {
@@ -75,6 +76,7 @@ export interface AnalysisResult {
   ndvi_value: number;
   ndbi_value?: number; // Layer 9: NDBI Pre-filter
   is_built_up_masked?: boolean;
+  is_water_masked?: boolean;
   ndvi_trend: { month: string; value: number }[];
   soil_moisture: number;
   slope_degrees: number;

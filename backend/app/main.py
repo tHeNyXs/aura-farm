@@ -114,6 +114,7 @@ async def evaluate_land_parcel(req: EvaluateRequest):
             "min_ndvi": round(ndbi_result["ndvi"] - 0.05, 3),
             "max_ndvi": round(ndbi_result["ndvi"] + 0.05, 3),
             "ndbi_value": ndbi_result["ndbi"],
+            "mndwi_value": gee_data["mndwi_value"],
             "cloud_cover_pct": 12.5,
             "satellite": "Sentinel-2 L2A (10m), Sentinel-1 SAR, SRTM DEM, CHIRPS, MODIS & ESA WorldCover",
             "sar_vv_db": gee_data["sar_vv_db"],
