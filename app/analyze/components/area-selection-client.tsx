@@ -57,6 +57,7 @@ export default function AreaSelectionClient() {
   // AI Processing State
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzingStepIndex, setAnalyzingStepIndex] = useState(0);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Load saved parcels from localStorage
   useEffect(() => {
@@ -224,9 +225,16 @@ export default function AreaSelectionClient() {
       {/* ═══════════════════════════════════════════
           SPLIT CONTAINER: SIDEBAR + SATELLITE MAP
          ═══════════════════════════════════════════ */}
-      <div className="flex flex-col lg:flex-row flex-1 w-full relative overflow-hidden">
+      <div className="flex flex-col lg:flex-row flex-1 w-full relative overflow-hidden h-[calc(100vh-64px)] lg:h-auto">
         {/* ── Left Sidebar (380px) ───────────────── */}
-        <aside className="w-full lg:w-[380px] bg-panel border-r border-line flex flex-col shrink-0 z-20 overflow-y-auto max-h-[45vh] lg:max-h-none">
+        <aside className={`absolute lg:relative inset-0 lg:inset-auto lg:w-[380px] bg-panel lg:border-r border-line flex-col shrink-0 z-[2000] lg:z-20 overflow-y-auto ${isMobileSidebarOpen ? "flex" : "hidden lg:flex"}`}>
+          {/* Mobile Close Button */}
+          <button 
+            onClick={() => setIsMobileSidebarOpen(false)}
+            className="lg:hidden absolute top-2 right-2 z-50 w-8 h-8 flex items-center justify-center bg-bg border border-line rounded-full text-ink-body hover:text-red-500 shadow-sm"
+          >
+            ?
+          </button>
           {/* Tabs Row */}
           <div className="h-12 border-b border-line flex items-center shrink-0">
             <button
@@ -532,8 +540,8 @@ export default function AreaSelectionClient() {
           {/* ═══════════════════════════════════════════
               ACTION FLOATING BAR (Bottom Right on Map)
              ═══════════════════════════════════════════ */}
-          <div className="absolute bottom-5 right-5 z-[1000] bg-panel/95 backdrop-blur-sm border border-line rounded-lg p-3 flex items-center gap-4 shadow-xl">
-            <div className="flex flex-col">
+          <div className="absolute bottom-5 left-5 right-5 md:left-auto md:right-5 z-[1000] bg-panel/95 backdrop-blur-sm border border-line rounded-lg p-3 flex flex-col md:flex-row items-center justify-between gap-3 shadow-xl">
+            <div className="flex flex-col text-center md:text-left">
               <span
                 className={`font-bold text-sm ${
                   areaRai > MAX_ALLOWED_RAI ? "text-red-700" : "text-primary-dark"
@@ -560,7 +568,7 @@ export default function AreaSelectionClient() {
                 activePolygon.length < 3 ||
                 areaRai > MAX_ALLOWED_RAI
               }
-              className={`px-6 py-2.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 shadow-xs cursor-pointer ${
+              className={`w-full md:w-auto px-6 py-2.5 rounded-md text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer ${
                 areaRai > MAX_ALLOWED_RAI
                   ? "bg-red-100 text-red-500 border border-red-200 cursor-not-allowed opacity-60"
                   : "bg-primary text-bg hover:bg-primary-dark disabled:opacity-50"
