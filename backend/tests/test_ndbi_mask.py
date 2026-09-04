@@ -62,5 +62,19 @@ class TestNdbiMask(unittest.TestCase):
         self.assertFalse(result["skip_ahp"])
         self.assertFalse(result["is_built_up"])
 
+    def test_worldcover_built_up_hard_mask(self):
+        """WorldCover Built-up must mask even when the spectral threshold misses it."""
+        result = evaluate_ndbi_hard_mask(
+            b8_nir=0.205,
+            b4_red=0.135,
+            b11_swir=0.177,
+            land_use_code=50,
+        )
+
+        self.assertTrue(result["skip_ahp"])
+        self.assertEqual(result["grade"], "N")
+        self.assertTrue(result["is_built_up"])
+        self.assertIn("WorldCover", result["message"])
+
 if __name__ == "__main__":
     unittest.main()

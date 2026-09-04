@@ -210,7 +210,7 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
     ndbiValue,
     landUseClass: isWaterBody ? "Permanent water bodies" : input.real_satellite?.land_use_label || "Cropland",
     soilMoisturePct: soilMoisture,
-    isBuiltUpOrRoof: false,
+    isBuiltUpOrRoof: input.real_satellite?.land_use_code === 50,
     isWaterBody,
   });
 

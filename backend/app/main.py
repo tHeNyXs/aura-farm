@@ -111,7 +111,12 @@ async def evaluate_land_parcel(req: EvaluateRequest):
         b4_red = gee_data["b4_red"]
         b11_swir = gee_data["b11_swir"]
 
-        ndbi_result = evaluate_ndbi_hard_mask(b8_nir, b4_red, b11_swir)
+        ndbi_result = evaluate_ndbi_hard_mask(
+            b8_nir,
+            b4_red,
+            b11_swir,
+            land_use_code=gee_data.get("land_use_code"),
+        )
 
         # Water must be excluded before AHP. A water surface can have low NDVI,
         # which otherwise looks superficially similar to non-vegetated land.

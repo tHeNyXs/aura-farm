@@ -29,10 +29,15 @@ def compute_ndvi(b8_nir: float, b4_red: float) -> float:
         return 0.0
     return (b8_nir - b4_red) / denom
 
-def evaluate_ndbi_hard_mask(b8_nir: float, b4_red: float, b11_swir: float) -> Dict[str, Any]:
+def evaluate_ndbi_hard_mask(
+    b8_nir: float,
+    b4_red: float,
+    b11_swir: float,
+    land_use_code: int | None = None,
+) -> Dict[str, Any]:
     """
     ประเมินเงื่อนไข Pre-filter Hard Mask:
-    IF NDBI > 0.10 AND NDVI < 0.20:
+    IF WorldCover is Built-up (50), OR NDBI > 0.10 AND NDVI < 0.20:
         -> บังคับเป็นเกรด N (0.15) และ skip_ahp = True
     ELSE:
         -> skip_ahp = False เข้าสู่ AHP ตามปกติ
@@ -42,14 +47,17 @@ def evaluate_ndbi_hard_mask(b8_nir: float, b4_red: float, b11_swir: float) -> Di
 
     logger.info(f"Calculated NDBI = {ndbi:.4f}, NDVI = {ndvi:.4f}")
 
-    is_built_up = (ndbi > 0.10 and ndvi < 0.20)
+    is_worldcover_built_up = land_use_code == 50
+    is_spectral_built_up = ndbi > 0.10 and ndvi < 0.20
+    is_built_up = is_worldcover_built_up or is_spectral_built_up
 
     if is_built_up:
-        message = (
-            f"⚠️ พื้นที่นี้ตรวจพบเป็นสิ่งปลูกสร้าง / อาคารคอนกรีต "
-            f"(NDBI={ndbi:.3f} > 0.10, NDVI={ndvi:.3f} < 0.20) "
-            f"→ ไม่ประเมินความเหมาะสมทางการเกษตร (เกรด N)"
+        detection_reason = (
+            "ESA WorldCover จัดเป็นพื้นที่สิ่งปลูกสร้าง (Built-up)"
+            if is_worldcover_built_up
+            else f"NDBI={ndbi:.3f} > 0.10 และ NDVI={ndvi:.3f} < 0.20"
         )
+        message = f"⚠️ พื้นที่นี้ตรวจพบเป็นสิ่งปลูกสร้าง / อาคารคอนกรีต ({detection_reason}) → ไม่ประเมินความเหมาะสมทางการเกษตร (เกรด N)"
         return {
             "skip_ahp": True,
             "grade": "N",
