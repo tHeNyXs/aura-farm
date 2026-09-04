@@ -14,6 +14,7 @@ import sqlite3
 import tempfile
 from pathlib import Path
 from typing import Dict
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 logger = logging.getLogger("ldd_zoning_bootstrap")
@@ -54,6 +55,7 @@ def provision_zoning_database() -> Dict[str, str | bool]:
         }
 
     expected_hash = os.getenv("LDD_ZONING_RELEASE_SHA256", "").strip().lower()
+    github_token = os.getenv("LDD_ZONING_GITHUB_TOKEN", "").strip()
     try:
         max_bytes = int(os.getenv("LDD_ZONING_MAX_BYTES", "4000000000"))
         if max_bytes <= 0:
@@ -83,7 +85,18 @@ def provision_zoning_database() -> Dict[str, str | bool]:
         logger.info("Downloading LDD Zoning database from configured release asset")
         digest = hashlib.sha256()
         total = 0
-        request = Request(release_url, headers={"User-Agent": "AuraFarm-Zoning/1.0"})
+        headers = {"User-Agent": "AuraFarm-Zoning/1.0"}
+        parsed_url = urlparse(release_url)
+        is_own_release = (
+            parsed_url.scheme == "https"
+            and parsed_url.netloc == "github.com"
+            and parsed_url.path.startswith("/tHeNyXs/aura-farm/releases/download/")
+        )
+        if github_token:
+            if not is_own_release:
+                raise ValueError("ไม่อนุญาตให้ส่งสิทธิ์ GitHub ไปยังแหล่งดาวน์โหลดอื่น")
+            headers["Authorization"] = f"Bearer {github_token}"
+        request = Request(release_url, headers=headers)
         download_target = compressed_temporary if compression == "gzip" else temporary
         with urlopen(request, timeout=120) as response, download_target.open("wb") as output:
             while chunk := response.read(1024 * 1024):

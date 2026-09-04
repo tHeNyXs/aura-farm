@@ -55,6 +55,11 @@ LDD_ZONING_RELEASE_SHA256=<SHA-256 of ldd_zoning.sqlite.gz>
 LDD_ZONING_RELEASE_COMPRESSION=gzip
 ```
 
+If the GitHub repository is private, also create a fine-grained GitHub token with
+**Contents: Read-only** access to this repository only, and save it in Render as the
+secret `LDD_ZONING_GITHUB_TOKEN`. The backend sends that token only to this
+repository's exact GitHub Release URL; it refuses to send it to any other address.
+
 On Windows, obtain the SHA-256 after building with:
 
 ```powershell
