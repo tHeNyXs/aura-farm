@@ -3,6 +3,9 @@ uvicorn==0.28.0
 earthengine-api==0.1.395
 shapely==2.0.3
 geopandas==0.14.3
+# GeoPandas 0.14 still imports fiona.path, which was removed in Fiona 2.
+# Pin the compatible major version so the LDD Shapefile importer cannot silently skip every file.
+fiona<2.0
 pyproj==3.6.1
 pydantic==2.6.4
 python-dotenv==1.0.1

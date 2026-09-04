@@ -61,6 +61,12 @@ jobs:
       - name: Build complete Thailand Zoning database
         run: |
           python backend/scripts/import_ldd_zoning.py "$SOURCE_ROOT" /tmp/ldd_zoning.sqlite
+          FEATURE_COUNT="$(python -c "import sqlite3; c=sqlite3.connect('/tmp/ldd_zoning.sqlite'); print(c.execute('SELECT COUNT(*) FROM zoning_features').fetchone()[0])")"
+          echo "Imported feature count: $FEATURE_COUNT"
+          test "$FEATURE_COUNT" -gt 0 || {
+            echo "No LDD Zoning features were imported. The release will not be published."
+            exit 1
+          }
           gzip --best --keep /tmp/ldd_zoning.sqlite
           test "$(stat --format=%s /tmp/ldd_zoning.sqlite.gz)" -lt 2147483648
           sha256sum /tmp/ldd_zoning.sqlite.gz > /tmp/ldd_zoning.sqlite.gz.sha256
