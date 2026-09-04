@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import * as turf from "@turf/turf";
 import { DrawingTool } from "./satellite-map";
 import { SavedParcelItem } from "@/app/analyze/result/[id]/components/save-parcel-button";
 
@@ -58,6 +59,13 @@ export default function AreaSelectionClient() {
     lng: number;
     zoom?: number;
   } | null>(null);
+  const [coordinateBounds, setCoordinateBounds] = useState({
+    latMin: "",
+    latMax: "",
+    lonMin: "",
+    lonMax: "",
+  });
+  const [coordinateError, setCoordinateError] = useState<string | null>(null);
 
   // Drawing Tool State (Default to 'polygon')
   const [activeTool, setActiveTool] = useState<DrawingTool>("polygon");
@@ -122,6 +130,48 @@ export default function AreaSelectionClient() {
     setAreaRai(0);
     setAreaHa(0);
     setActiveTool("polygon");
+  };
+
+  // Create a rectangular parcel from the supplied geographic bounds.
+  const handleCreatePolygonFromBounds = () => {
+    if (Object.values(coordinateBounds).some((value) => value.trim() === "")) {
+      setCoordinateError("กรุณากรอกพิกัดทั้ง 4 ค่า");
+      return;
+    }
+    const latMin = Number(coordinateBounds.latMin);
+    const latMax = Number(coordinateBounds.latMax);
+    const lonMin = Number(coordinateBounds.lonMin);
+    const lonMax = Number(coordinateBounds.lonMax);
+
+    if (![latMin, latMax, lonMin, lonMax].every(Number.isFinite)) {
+      setCoordinateError("กรุณากรอกพิกัดทั้ง 4 ค่าเป็นตัวเลข");
+      return;
+    }
+    if (latMin >= latMax || lonMin >= lonMax) {
+      setCoordinateError("ต้องกำหนดให้ lat_min < lat_max และ lon_min < lon_max");
+      return;
+    }
+    if (latMin < 5.2 || latMax > 20.9 || lonMin < 96 || lonMax > 106.2) {
+      setCoordinateError("ระบบรองรับเฉพาะพื้นที่ในประเทศไทย (ละติจูด 5.2–20.9, ลองจิจูด 96–106.2)");
+      return;
+    }
+
+    const polygon: [number, number][] = [
+      [latMin, lonMin],
+      [latMin, lonMax],
+      [latMax, lonMax],
+      [latMax, lonMin],
+    ];
+    const ring = polygon.map(([lat, lon]) => [lon, lat]);
+    ring.push(ring[0]);
+    const squareMetres = turf.area(turf.polygon([ring]));
+
+    setCoordinateError(null);
+    setActivePolygon(polygon);
+    setAreaRai(Number((squareMetres / 1600).toFixed(1)));
+    setAreaHa(Number((squareMetres / 10000).toFixed(2)));
+    setFlyToCoords({ lat: (latMin + latMax) / 2, lng: (lonMin + lonMax) / 2, zoom: 16 });
+    setActiveTool("none");
   };
 
   // Handle click "วิเคราะห์พื้นที่นี้" with AI Analysis Engine
@@ -311,6 +361,46 @@ export default function AreaSelectionClient() {
                   <span>วาดกรอบสี่เหลี่ยม</span>
                 </button>
               </div>
+
+              <section className="rounded-lg border border-line bg-bg p-3.5" aria-labelledby="coordinate-bounds-title">
+                <div className="mb-2">
+                  <h4 id="coordinate-bounds-title" className="text-xs font-bold text-primary-dark">
+                    สร้างกรอบจากพิกัด
+                  </h4>
+                  <p className="mt-1 text-[11px] leading-relaxed text-ink-soft">
+                    กรอกขอบเขตพื้นที่เพื่อทดสอบ: lat_min, lat_max, lon_min และ lon_max
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    ["latMin", "lat_min"],
+                    ["latMax", "lat_max"],
+                    ["lonMin", "lon_min"],
+                    ["lonMax", "lon_max"],
+                  ] as const).map(([key, label]) => (
+                    <label key={key} className="flex flex-col gap-1 text-[11px] font-semibold text-ink-body">
+                      {label}
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        step="any"
+                        value={coordinateBounds[key]}
+                        onChange={(event) => setCoordinateBounds((current) => ({ ...current, [key]: event.target.value }))}
+                        placeholder={key.startsWith("lat") ? "เช่น 13.7500" : "เช่น 100.5000"}
+                        className="w-full rounded border border-line bg-panel px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-primary"
+                      />
+                    </label>
+                  ))}
+                </div>
+                {coordinateError && <p role="alert" className="mt-2 text-[11px] leading-relaxed text-red-700">{coordinateError}</p>}
+                <button
+                  type="button"
+                  onClick={handleCreatePolygonFromBounds}
+                  className="mt-3 w-full rounded-md bg-primary px-3 py-2 text-xs font-bold text-bg transition-colors hover:bg-primary-dark"
+                >
+                  สร้างกรอบจากพิกัด
+                </button>
+              </section>
 
               {/* Status summary */}
               <div
