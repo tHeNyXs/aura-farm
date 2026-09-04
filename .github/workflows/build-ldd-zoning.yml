@@ -60,6 +60,7 @@ jobs:
 
       - name: Build complete Thailand Zoning database
         run: |
+          python -c "import geopandas, pyogrio; print('Importer versions:', 'geopandas=' + geopandas.__version__, 'pyogrio=' + pyogrio.__version__)"
           python backend/scripts/import_ldd_zoning.py "$SOURCE_ROOT" /tmp/ldd_zoning.sqlite
           FEATURE_COUNT="$(python -c "import sqlite3; c=sqlite3.connect('/tmp/ldd_zoning.sqlite'); print(c.execute('SELECT COUNT(*) FROM zoning_features').fetchone()[0])")"
           echo "Imported feature count: $FEATURE_COUNT"

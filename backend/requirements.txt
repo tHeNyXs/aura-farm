@@ -3,9 +3,9 @@ uvicorn==0.28.0
 earthengine-api==0.1.395
 shapely==2.0.3
 geopandas==0.14.3
-# GeoPandas 0.14 still imports fiona.path, removed in Fiona 1.10.
-# Keep the tested 1.9 release so the LDD Shapefile importer cannot skip every file.
-fiona==1.9.6
+# Use GDAL through pyogrio for the bulk Shapefile import. This avoids the removed
+# fiona.path API and keeps the build independent from Fiona version changes.
+pyogrio==0.9.0
 pyproj==3.6.1
 pydantic==2.6.4
 python-dotenv==1.0.1

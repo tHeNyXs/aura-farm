@@ -59,7 +59,11 @@ def main(source_root: str, output_file: str) -> None:
     for folder, crop_id in CROPS.items():
         for archive in sorted((source / folder).rglob("*.zip")):
             try:
-                frame = gpd.read_file(f"zip://{archive.resolve()}")
+                # Read archives through GDAL/pyogrio, rather than Fiona. GeoPandas
+                # 0.14's legacy ZIP path helper calls fiona.path, which no longer
+                # exists in recent Fiona releases and caused every province to skip.
+                archive_vsi_path = f"/vsizip/{archive.resolve().as_posix()}"
+                frame = gpd.read_file(archive_vsi_path, engine="pyogrio")
                 suit_column = get_suitability_column(frame.columns)
                 if not suit_column:
                     raise ValueError("ไม่พบฟิลด์ Suit_xx")
