@@ -5,7 +5,7 @@ Aura Farm v2.0 - FastAPI Main Orchestration Engine
 
 import logging
 import asyncio
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -27,11 +27,24 @@ logger = logging.getLogger("main_orchestrator")
 zoning_bootstrap_status: Dict[str, Any] = {"available": False, "state": "starting"}
 
 
-@asynccontextmanager
-async def lifespan(_: FastAPI):
+async def provision_zoning_in_background() -> None:
+    """Prepare the large zoning archive without delaying the web server port."""
     global zoning_bootstrap_status
     zoning_bootstrap_status = await asyncio.to_thread(provision_zoning_database)
-    yield
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Render needs a listening port promptly. The nationwide LDD database can take
+    # longer to download than its port scan, so provision it after startup instead.
+    zoning_task = asyncio.create_task(provision_zoning_in_background())
+    try:
+        yield
+    finally:
+        if not zoning_task.done():
+            zoning_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await zoning_task
 
 
 app = FastAPI(
