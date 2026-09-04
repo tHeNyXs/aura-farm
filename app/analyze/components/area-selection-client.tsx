@@ -24,6 +24,17 @@ const SatelliteMap = dynamic(() => import("./satellite-map"), {
   ),
 });
 
+const GoogleSatelliteMap = dynamic(() => import("./google-satellite-map"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center bg-[#1a2419] text-line text-xs">
+      กำลังโหลด Google Maps...
+    </div>
+  ),
+});
+
+const hasGoogleMapsKey = Boolean(process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
+
 const AI_ANALYZING_STEPS = [
   "🛰️ กำลังเชื่อมต่อข้อมูลดาวเทียม Sentinel-2...",
   "🌿 วิเคราะห์สเปกตรัมสะท้อนแสงเพื่อคำนวณดัชนีพืชพรรณ (NDVI)...",
@@ -455,13 +466,19 @@ export default function AreaSelectionClient() {
 
         {/* ── Main Map Area ───────────────────────── */}
         <main className="flex-1 relative h-[550px] lg:h-[calc(100vh-64px)] w-full overflow-hidden">
-          <SatelliteMap
+          {hasGoogleMapsKey ? <GoogleSatelliteMap
             tool={activeTool}
             onToolChange={setActiveTool}
             selectedPolygon={activePolygon}
             onPolygonChange={handlePolygonChange}
             flyToCoords={flyToCoords}
-          />
+          /> : <SatelliteMap
+            tool={activeTool}
+            onToolChange={setActiveTool}
+            selectedPolygon={activePolygon}
+            onPolygonChange={handlePolygonChange}
+            flyToCoords={flyToCoords}
+          />}
 
           {/* ═══════════════════════════════════════════
               DRAWING TOOLBAR (Top-Left on Map)
