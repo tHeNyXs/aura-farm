@@ -1,6 +1,6 @@
 """
 Level 2 Crop-Specific Suitability Module for Aura Farm v2.0
-ประเมินความเหมาะสมของ 15 พืชเศรษฐกิจยุทธศาสตร์หลักตามเกณฑ์คู่มือกรมพัฒนาที่ดิน (LDD) และแผนที่ Agri-Map
+ประเมินความเหมาะสมของ 13 พืชจากชุดข้อมูลเขตความเหมาะสมของที่ดิน (LDD Zoning)
 ด้วยวิธีปัจจัยจำกัดสูงสุด (Maximum Limitation Method อิง FAO 1983)
 """
 
@@ -10,7 +10,7 @@ from typing import List, Dict, Any, Tuple
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("crop_filter_level2")
 
-# Database of 15 National Strategic Economic Crops with Official LDD S1, S2, S3 Criteria Matrix
+# Source profiles used to form the exact 13 crops in the downloadable LDD Zoning dataset.
 CROP_REQUIREMENTS: List[Dict[str, Any]] = [
     # หมวดที่ 1: พืชไร่และธัญพืชหลัก (5 ชนิด)
     {
@@ -215,6 +215,24 @@ CROP_REQUIREMENTS: List[Dict[str, Any]] = [
     }
 ]
 
+# LDD publishes a single Rice zoning layer. Keep the old rice profile only as
+# agronomic metadata, merge it into that layer, and exclude Mango because this
+# downloaded 13-crop Zoning dataset has no Mango layer.
+_rice_profile = next(crop for crop in CROP_REQUIREMENTS if crop["id"] == "jasmine_rice")
+_ldd_rice = {
+    **_rice_profile,
+    "id": "rice",
+    "name": "ข้าว (Rice)",
+    "description": "ผลประเมินอ้างอิงเขตความเหมาะสมของที่ดินสำหรับข้าวจาก LDD Zoning",
+}
+CROP_REQUIREMENTS = [
+    _ldd_rice,
+    *[
+        crop for crop in CROP_REQUIREMENTS
+        if crop["id"] not in {"jasmine_rice", "lowland_rice", "mango"}
+    ],
+]
+
 def check_ldd_range(value: float, ranges: Dict[str, Tuple[float, float]], param_name: str, unit: str = "") -> Tuple[str, str]:
     """
     ตรวจสอบค่าที่วัดได้ว่าตกอยู่ในช่วง S1, S2, S3 หรือ N
@@ -244,7 +262,7 @@ def filter_crops(
     **kwargs
 ) -> List[Dict[str, Any]]:
     """
-    ประเมินพืชเศรษฐกิจ 15 ชนิดด้วยวิธีปัจจัยจำกัดสูงสุด (Maximum Limitation Method - FAO 1983)
+    ประเมินพืช LDD Zoning 13 ชนิดด้วยวิธีปัจจัยจำกัดสูงสุด (Maximum Limitation Method - FAO 1983)
     รองรับทั้งการเรียกโดยตรง และการเรียกผ่าน main.py (gee_data, level1_result)
     """
     if "gee_data" in kwargs:

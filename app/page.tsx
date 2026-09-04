@@ -24,7 +24,7 @@ const steps = [
     icon: "📊",
     title: "จำแนกเกรดมาตรฐาน FAO & LDD",
     description:
-      "ประเมินเทียบตารางเกณฑ์ 15 พืชเศรษฐกิจยุทธศาสตร์ด้วยวิธีปัจจัยจำกัดสูงสุด (Maximum Limitation Method)",
+      "ประเมินด้วยเขตความเหมาะสมของที่ดิน LDD Zoning สำหรับ 13 พืช",
   },
   {
     number: "04",
@@ -119,7 +119,7 @@ export default function HomePage() {
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600" />
           </span>
           <span className="text-xs font-bold text-emerald-900 tracking-wide">
-            อัปเกรดใหม่: เกณฑ์คู่มือ LDD แท้จริง & 15 พืชเศรษฐกิจยุทธศาสตร์หลัก
+            อัปเกรดใหม่: LDD Zoning ทางการสำหรับ 13 พืชเศรษฐกิจ
           </span>
         </div>
 
@@ -157,7 +157,7 @@ export default function HomePage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 mt-6 w-full max-w-4xl">
           <div className="bg-white/70 backdrop-blur-sm border border-[#E8E3D8] rounded-2xl p-4 flex flex-col items-center text-center shadow-xs">
             <span className="text-2xl mb-1">🌾</span>
-            <span className="font-heading font-black text-lg text-emerald-900">15 ชนิด</span>
+            <span className="font-heading font-black text-lg text-emerald-900">13 ชนิด</span>
             <span className="text-xs text-[#5D7060]">พืชยุทธศาสตร์หลัก</span>
           </div>
           <div className="bg-white/70 backdrop-blur-sm border border-[#E8E3D8] rounded-2xl p-4 flex flex-col items-center text-center shadow-xs">

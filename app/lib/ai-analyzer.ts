@@ -261,7 +261,9 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
       : lddResult.fao_label;
     const zoningFactor = useOfficialZoning
       ? `LDD Zoning: ${finalFaoClass} ครอบคลุม ${zoning!.area_share_pct[finalFaoClass]}% ของแปลง`
-      : undefined;
+      : input.real_satellite?.zoning?.available
+      ? "LDD Zoning: ข้อมูลสำหรับพืชนี้ครอบคลุมแปลงไม่ถึง 50% จึงใช้ข้อมูลดาวเทียมประกอบ"
+      : "LDD Zoning: ยังไม่มีข้อมูลสำหรับแปลงนี้ จึงใช้ข้อมูลดาวเทียมประกอบ";
 
     // OAE Yield Benchmark Validation
     const oaeVal = validateWithOAEBenchmark(crop.id, finalFaoClass);
@@ -305,8 +307,10 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
       pros,
       cautions,
       limiting_factors: lddResult.limiting_factors,
-      is_masked_out: lddResult.is_masked_out,
-      mask_reason: lddResult.mask_reason,
+      is_masked_out: finalFaoClass === "N",
+      mask_reason: finalFaoClass === "N" && useOfficialZoning
+        ? "LDD Zoning จัดพื้นที่นี้เป็นไม่เหมาะสมสำหรับพืชชนิดนี้"
+        : lddResult.mask_reason,
       source_citation: crop.source_citation,
       oae_yield_benchmark: oaeVal ? `สถิติ สศก.: ${oaeVal.estimated_yield_kg_rai} ${oaeVal.yield_match_status}` : undefined,
     };

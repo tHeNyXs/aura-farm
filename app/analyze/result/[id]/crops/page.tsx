@@ -63,13 +63,13 @@ export default async function CropRecommendationsPage({ params, searchParams }: 
               <span>กลับไปยังรายงานผลวิเคราะห์ที่ดิน</span>
             </Link>
             <span className="text-slate-300">•</span>
-            <span className="text-slate-500 font-medium">การประเมินความเหมาะสม 15 พืชยุทธศาสตร์หลัก (LDD & Agri-Map)</span>
+            <span className="text-slate-500 font-medium">การประเมินความเหมาะสม 13 พืชจาก LDD Zoning</span>
           </div>
           <h1 className="font-heading font-black text-2xl md:text-4xl text-[#142B18] tracking-tight">
             รายชื่อพืชแนะนำสำหรับ {analysis.location_name}
           </h1>
           <p className="text-xs sm:text-sm text-[#4A5D4E] leading-relaxed">
-            ประเมินด้วย <strong>วิธีปัจจัยจำกัดสูงสุด (Maximum Limitation Method)</strong> ตามคู่มือเกณฑ์ของกรมพัฒนาที่ดิน (LDD) และมาตรฐานสากล FAO (1983) ครอบคลุม 15 พืชยุทธศาสตร์หลักที่มีความแม่นยำสูง
+            ประเมินจาก <strong>เขตความเหมาะสมของที่ดิน LDD Zoning</strong> สำหรับ 13 พืช และใช้ข้อมูลดาวเทียมตัดพื้นที่น้ำหรือสิ่งปลูกสร้างก่อนแสดงผล
           </p>
         </div>
 

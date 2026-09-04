@@ -56,10 +56,9 @@ export interface CropRequirement {
 }
 
 /**
- * ฐานข้อมูล 15 พืชเศรษฐกิจยุทธศาสตร์หลักของไทย (National Strategic Economic Crops)
- * คัดเลือกเฉพาะพืชที่มีเกณฑ์ทางกายภาพทางการของกรมพัฒนาที่ดิน (LDD) และแผนที่ Agri-Map ชัดเจน แม่นยำ และตรวจสอบได้ 100%
+ * รายการตั้งต้นสำหรับสร้างรายการพืช LDD Zoning ทางการ
  */
-export const CROP_DATABASE: CropRequirement[] = [
+const RAW_CROP_DATABASE: CropRequirement[] = [
   // ==========================================
   // หมวดที่ 1: พืชไร่และธัญพืชหลัก (5 ชนิด)
   // ==========================================
@@ -629,6 +628,28 @@ export const CROP_DATABASE: CropRequirement[] = [
     forbidden_soil_groups: [99, 1, 2, 3, 4, 15],
     favored_regions: ["central", "east", "south"],
   },
+];
+
+// The downloadable LDD Zoning dataset contains these exact 13 crop groups.
+// Rice is one LDD layer, so the former two rice varieties are intentionally
+// represented as a single "rice" result. Mango has no corresponding layer.
+const riceReference = RAW_CROP_DATABASE.find((crop) => crop.id === "jasmine_rice");
+if (!riceReference) {
+  throw new Error("ไม่พบข้อมูลตั้งต้นสำหรับพืชข้าว")
+}
+
+export const CROP_DATABASE: CropRequirement[] = [
+  {
+    ...riceReference,
+    id: "rice",
+    name: "ข้าว (Rice)",
+    image_url: "/images/crops/jasmine_rice.jpg",
+    description: "ผลประเมินใช้ชั้นข้อมูลเขตความเหมาะสมของที่ดินสำหรับข้าวจากกรมพัฒนาที่ดิน (LDD Zoning)",
+    source_citation: "เขตความเหมาะสมของที่ดินสำหรับการปลูกข้าว กรมพัฒนาที่ดิน (LDD Zoning)",
+  },
+  ...RAW_CROP_DATABASE.filter(
+    (crop) => !["jasmine_rice", "lowland_rice", "mango"].includes(crop.id)
+  ),
 ];
 
 export interface CropEvaluationParams {
