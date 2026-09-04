@@ -304,7 +304,7 @@ export default function SatelliteMap({
 
     const loadLayer = async () => {
       const zoom = Math.round(map.getZoom());
-      if (zoom < 11) {
+      if (zoom < 6) {
         clearLayer();
         setZoningStatus("ซูมเข้าอีกนิดเพื่อแสดงระดับความเหมาะสม");
         return;

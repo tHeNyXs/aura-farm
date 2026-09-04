@@ -93,12 +93,15 @@ def zoning_map_features(crop_id: str, west: float, south: float, east: float, no
     if not (-180 <= west < east <= 180 and -90 <= south < north <= 90):
         raise ValueError("ขอบเขตแผนที่ไม่ถูกต้อง")
 
-    # Avoid returning country-sized detail when the user is zoomed far out.
-    max_span = 10.0 if zoom < 10 else 4.0 if zoom < 12 else 1.5
+    # At country view return a deliberately simplified overview; detailed geometry
+    # is fetched automatically as the user zooms in. This allows a user to compare
+    # S1/S2/S3/N nationwide without downloading the original high-detail shapes.
+    max_span = 22.0 if zoom < 9 else 10.0 if zoom < 10 else 4.0 if zoom < 12 else 1.5
     if east - west > max_span or north - south > max_span:
         return {"available": True, "zoom_required": True, "type": "FeatureCollection", "features": []}
 
-    tolerance = 0.0003 if zoom < 12 else 0.0001 if zoom < 14 else 0.00003 if zoom < 16 else 0.00001
+    tolerance = 0.005 if zoom < 9 else 0.001 if zoom < 10 else 0.0003 if zoom < 12 else 0.0001 if zoom < 14 else 0.00003 if zoom < 16 else 0.00001
+    feature_limit = 10000 if zoom < 9 else 5000 if zoom < 12 else 3000
     sql = """
         SELECT suitability, geom_wkb
         FROM zoning_features AS feature
@@ -106,11 +109,11 @@ def zoning_map_features(crop_id: str, west: float, south: float, east: float, no
         WHERE feature.crop_id = ?
           AND spatial_index.min_lng <= ? AND spatial_index.max_lng >= ?
           AND spatial_index.min_lat <= ? AND spatial_index.max_lat >= ?
-        LIMIT 3000
+        LIMIT ?
     """
     features: List[Dict[str, Any]] = []
     with closing(sqlite3.connect(DB_PATH)) as conn:
-        for suitability, raw_geometry in conn.execute(sql, (crop_id, east, west, north, south)):
+        for suitability, raw_geometry in conn.execute(sql, (crop_id, east, west, north, south, feature_limit)):
             geometry = wkb.loads(raw_geometry)
             simplified = geometry.simplify(tolerance, preserve_topology=True)
             if simplified.is_empty:

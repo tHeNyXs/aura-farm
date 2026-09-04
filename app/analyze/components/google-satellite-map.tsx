@@ -189,7 +189,7 @@ export default function GoogleSatelliteMap({
     const loadLayer = async () => {
       const bounds = map.getBounds?.();
       const zoom = Math.round(map.getZoom?.() || 0);
-      if (!bounds || zoom < 11) {
+      if (!bounds || zoom < 6) {
         clearLayer();
         setZoningStatus("ซูมเข้าอีกนิดเพื่อแสดงระดับความเหมาะสม");
         return;
