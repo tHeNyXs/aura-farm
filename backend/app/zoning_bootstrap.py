@@ -8,6 +8,7 @@ atomically at boot and never replaces a valid local copy with a partial download
 import hashlib
 import gzip
 import logging
+import json
 import os
 import shutil
 import sqlite3
@@ -15,9 +16,48 @@ import tempfile
 from pathlib import Path
 from typing import Dict
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
 logger = logging.getLogger("ldd_zoning_bootstrap")
+
+
+class _SafeGitHubRedirect(HTTPRedirectHandler):
+    """Do not forward the repository token from GitHub to a storage redirect."""
+
+    def redirect_request(self, request, response, code, message, headers, new_url):
+        redirected = super().redirect_request(request, response, code, message, headers, new_url)
+        if redirected and urlparse(request.full_url).netloc != urlparse(new_url).netloc:
+            redirected.remove_header("Authorization")
+        return redirected
+
+
+def _private_release_asset_request(release_url: str, token: str) -> Request:
+    """Resolve a private release asset via the GitHub API, without exposing the token."""
+    parsed = urlparse(release_url)
+    parts = parsed.path.strip("/").split("/")
+    # Expected: owner/repository/releases/download/tag/asset-name
+    if len(parts) != 6 or parts[2:4] != ["releases", "download"]:
+        raise ValueError("รูปแบบ URL ของ GitHub Release ไม่ถูกต้อง")
+    owner, repository, _, _, tag, asset_name = parts
+    api_headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {token}",
+        "User-Agent": "AuraFarm-Zoning/1.0",
+    }
+    api_url = f"https://api.github.com/repos/{owner}/{repository}/releases/tags/{tag}"
+    with urlopen(Request(api_url, headers=api_headers), timeout=30) as response:
+        release = json.load(response)
+    asset = next((item for item in release.get("assets", []) if item.get("name") == asset_name), None)
+    if not asset:
+        raise ValueError("ไม่พบไฟล์ฐานข้อมูลใน GitHub Release")
+    return Request(
+        asset["url"],
+        headers={
+            "Accept": "application/octet-stream",
+            "Authorization": f"Bearer {token}",
+            "User-Agent": "AuraFarm-Zoning/1.0",
+        },
+    )
 
 
 def _database_path() -> Path:
@@ -85,7 +125,6 @@ def provision_zoning_database() -> Dict[str, str | bool]:
         logger.info("Downloading LDD Zoning database from configured release asset")
         digest = hashlib.sha256()
         total = 0
-        headers = {"User-Agent": "AuraFarm-Zoning/1.0"}
         parsed_url = urlparse(release_url)
         is_own_release = (
             parsed_url.scheme == "https"
@@ -95,10 +134,14 @@ def provision_zoning_database() -> Dict[str, str | bool]:
         if github_token:
             if not is_own_release:
                 raise ValueError("ไม่อนุญาตให้ส่งสิทธิ์ GitHub ไปยังแหล่งดาวน์โหลดอื่น")
-            headers["Authorization"] = f"Bearer {github_token}"
-        request = Request(release_url, headers=headers)
+            request = _private_release_asset_request(release_url, github_token)
+            opener = build_opener(_SafeGitHubRedirect())
+            open_request = opener.open
+        else:
+            request = Request(release_url, headers={"User-Agent": "AuraFarm-Zoning/1.0"})
+            open_request = urlopen
         download_target = compressed_temporary if compression == "gzip" else temporary
-        with urlopen(request, timeout=120) as response, download_target.open("wb") as output:
+        with open_request(request, timeout=120) as response, download_target.open("wb") as output:
             while chunk := response.read(1024 * 1024):
                 total += len(chunk)
                 if total > max_bytes:
