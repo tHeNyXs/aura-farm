@@ -69,7 +69,7 @@ export default async function CropRecommendationsPage({ params, searchParams }: 
             รายชื่อพืชแนะนำสำหรับ {analysis.location_name}
           </h1>
           <p className="text-xs sm:text-sm text-[#4A5D4E] leading-relaxed">
-            ประเมินจาก <strong>เขตความเหมาะสมของที่ดิน LDD Zoning</strong> สำหรับ 13 พืช และใช้ข้อมูลดาวเทียมตัดพื้นที่น้ำหรือสิ่งปลูกสร้างก่อนแสดงผล
+            เกรดพืชอ้างอิงจาก <strong>เขตความเหมาะสมของที่ดิน LDD Zoning</strong> สำหรับ 13 พืช และใช้ข้อมูลดาวเทียมเพียงเพื่อตัดพื้นที่น้ำหรือสิ่งปลูกสร้างในสภาพปัจจุบัน หาก LDD ไม่ครอบคลุม ระบบจะไม่จัดเกรด
           </p>
         </div>
 

@@ -24,7 +24,9 @@ export default function CropsClient({ analysis, crops }: CropsClientProps) {
     const matchesCategory =
       selectedCategory === "ทั้งหมด" || crop.category === selectedCategory;
     const matchesFao =
-      selectedFaoClass === "ALL" || crop.fao_class === selectedFaoClass;
+      selectedFaoClass === "ALL"
+        ? true
+        : Boolean(crop.ldd_data_available || crop.is_masked_out) && crop.fao_class === selectedFaoClass;
     return matchesCategory && matchesFao;
   });
 
@@ -83,10 +85,11 @@ export default function CropsClient({ analysis, crops }: CropsClientProps) {
     }
   };
 
-  const s1Count = crops.filter((c) => c.fao_class === "S1").length;
-  const s2Count = crops.filter((c) => c.fao_class === "S2").length;
-  const s3Count = crops.filter((c) => c.fao_class === "S3").length;
-  const nCount = crops.filter((c) => c.fao_class === "N").length;
+  const gradedCrops = crops.filter((crop) => crop.ldd_data_available || crop.is_masked_out);
+  const s1Count = gradedCrops.filter((c) => c.fao_class === "S1").length;
+  const s2Count = gradedCrops.filter((c) => c.fao_class === "S2").length;
+  const s3Count = gradedCrops.filter((c) => c.fao_class === "S3").length;
+  const nCount = gradedCrops.filter((c) => c.fao_class === "N").length;
 
   return (
     <div className="flex flex-col gap-8">
@@ -97,13 +100,13 @@ export default function CropsClient({ analysis, crops }: CropsClientProps) {
             <span className="text-xs text-emerald-800 font-bold uppercase tracking-wider">
               🌾 การจำแนกตามเกณฑ์ LDD & FAO
             </span>
-            <span className="text-xs text-[#5D7060]">• วิธีปัจจัยจำกัดสูงสุด</span>
+            <span className="text-xs text-[#5D7060]">• เกรดอ้างอิงเขตความเหมาะสม LDD</span>
           </div>
           <h2 className="font-heading font-black text-xl md:text-2xl text-[#142B18]">
             พืชเศรษฐกิจสำหรับแปลงนี้ ({crops.length} ชนิด)
           </h2>
           <p className="text-xs text-[#5D7060]">
-            วิเคราะห์จากความลาดชัน {analysis.slope_degrees}°, ความชื้นผิวดิน {analysis.soil_moisture}%, {analysis.soil_group?.nameTh || "ดินร่วนที่ดอน"}
+            เกรด S1–N ใช้ข้อมูล LDD Zoning ที่ครอบคลุมแปลง; ดาวเทียมใช้ตรวจน้ำและสิ่งปลูกสร้างในสภาพปัจจุบัน
           </p>
         </div>
 
@@ -221,8 +224,14 @@ export default function CropsClient({ analysis, crops }: CropsClientProps) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCrops.map((crop) => {
-            const badgeStyle = getFaoBadgeStyle(crop.fao_class);
-            const cardTheme = getCropCardStyle(crop.fao_class);
+            const hasLddGrade = Boolean(crop.ldd_data_available || crop.is_masked_out);
+            const badgeStyle = hasLddGrade ? getFaoBadgeStyle(crop.fao_class) : "bg-slate-600 text-white border-slate-700 shadow-2xs";
+            const cardTheme = hasLddGrade ? getCropCardStyle(crop.fao_class) : {
+              cardBg: "bg-slate-50 border-slate-200 text-slate-800",
+              specBg: "bg-slate-100 border-slate-200",
+              badgeClass: "ไม่มีข้อมูล LDD",
+              btnStyle: "bg-slate-700 text-white hover:bg-slate-800 shadow-2xs",
+            };
 
             return (
               <div
@@ -248,7 +257,7 @@ export default function CropsClient({ analysis, crops }: CropsClientProps) {
 
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       <span className={`px-2.5 py-1 rounded-xl text-xs font-bold border ${badgeStyle}`}>
-                        เกรด {crop.fao_class}
+                        {hasLddGrade ? `เกรด ${crop.fao_class}` : "ไม่มีข้อมูล LDD"}
                       </span>
                       <span className="text-[11px] font-bold opacity-90">
                         {cardTheme.badgeClass}

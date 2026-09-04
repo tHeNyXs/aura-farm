@@ -51,10 +51,12 @@ export default async function AnalysisResultPage({ params, searchParams }: PageP
   }
   const { result: data, rankedCrops } = analysis;
 
-  const s1Crops = rankedCrops.filter((c) => c.fao_class === "S1");
-  const s2Crops = rankedCrops.filter((c) => c.fao_class === "S2");
-  const s3Crops = rankedCrops.filter((c) => c.fao_class === "S3");
-  const nCrops = rankedCrops.filter((c) => c.fao_class === "N");
+  // Missing LDD coverage is not an N grade and must not make the parcel look unsuitable.
+  const gradedCrops = rankedCrops.filter((crop) => crop.ldd_data_available || crop.is_masked_out);
+  const s1Crops = gradedCrops.filter((c) => c.fao_class === "S1");
+  const s2Crops = gradedCrops.filter((c) => c.fao_class === "S2");
+  const s3Crops = gradedCrops.filter((c) => c.fao_class === "S3");
+  const nCrops = gradedCrops.filter((c) => c.fao_class === "N");
 
   const lvl1 = data.overall_land_suitability || {
     indexScore: (data.suitability_score / 100),

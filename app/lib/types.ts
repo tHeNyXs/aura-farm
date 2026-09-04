@@ -115,6 +115,8 @@ export interface Crop {
   mask_reason?: string;
   source_citation?: string;
   oae_yield_benchmark?: string;
+  /** False means LDD Zoning has no usable coverage for this parcel and crop. */
+  ldd_data_available?: boolean;
 }
 
 export interface RecentSurvey {

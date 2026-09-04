@@ -15,7 +15,7 @@ from datetime import datetime
 from app.gee_client import fetch_gee_layers, get_gee_status
 from app.ndbi_mask import evaluate_ndbi_hard_mask
 from app.suitability_level1 import calculate_level1_suitability
-from app.crop_filter_level2 import filter_crops
+from app.crop_filter_level2 import filter_crops_from_ldd_zoning
 from app.oae_validation_level3 import validate_with_oae
 from app.zoning_service import lookup_zoning, zoning_map_features
 from app.zoning_bootstrap import provision_zoning_database
@@ -175,18 +175,18 @@ async def evaluate_land_parcel(req: EvaluateRequest):
             irrigation_score=req.irrigation_score or 0.80
         )
 
-        # Step 4: Level 2 - Crop-Specific Suitability Filtering (พืชเศรษฐกิจหลักตามฐานข้อมูล LDD)
-        level2_crops = filter_crops(
-            gee_data=gee_data,
-            level1_result=level1_result,
-            soil_ph=req.soil_ph or 6.5,
+        zoning_result = lookup_zoning(req.polygon)
+        # Step 4: Crop grades come exclusively from official LDD Zoning coverage.
+        # Satellite data is used only to reject water/buildings at the present time.
+        level2_crops = filter_crops_from_ldd_zoning(
+            zoning_result,
+            is_built_up=ndbi_result["is_built_up"],
             is_water=is_water_body,
         )
-        zoning_result = lookup_zoning(req.polygon)
 
         # Step 5: Level 3 - OAE Benchmark Yield Validation
-        top_crop = level2_crops[0] if level2_crops else {"name": "ข้าวหอมมะลิ (Hom Mali Rice)", "grade": level1_result["grade"]}
-        level3_validation = validate_with_oae(top_crop["name"], top_crop["grade"])
+        top_crop = next((crop for crop in level2_crops if crop["grade"] != "NO_DATA"), None)
+        level3_validation = validate_with_oae(top_crop["name"], top_crop["grade"]) if top_crop else None
 
         # Format Next.js UI Compatible Response
         response_payload = {

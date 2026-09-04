@@ -251,6 +251,47 @@ def check_ldd_range(value: float, ranges: Dict[str, Tuple[float, float]], param_
     else:
         return "N", f"{param_name} ({value}{unit}) ไม่อยู่ในเกณฑ์ที่เหมาะสม N (เกณฑ์ S1 คือ {s1_min}-{s1_max}{unit})"
 
+
+def filter_crops_from_ldd_zoning(
+    zoning_result: Dict[str, Any],
+    is_built_up: bool = False,
+    is_water: bool = False,
+) -> List[Dict[str, Any]]:
+    """Return crop grades solely from official LDD Zoning overlay results.
+
+    Satellite observations are deliberately only a current-surface safety mask.
+    They never manufacture an S1/S2/S3/N crop grade when LDD has no coverage.
+    """
+    zoning_by_id = {item.get("crop_id"): item for item in zoning_result.get("crops", [])}
+    labels = {
+        "S1": "เหมาะสมมาก (S1)", "S2": "เหมาะสมปานกลาง (S2)",
+        "S3": "เหมาะสมน้อย (S3)", "N": "ไม่แนะนำ (N)",
+    }
+    results: List[Dict[str, Any]] = []
+    for crop in CROP_REQUIREMENTS:
+        zoning = zoning_by_id.get(crop["id"], {})
+        official_grade = zoning.get("official_grade")
+        coverage_pct = float(zoning.get("coverage_pct", 0) or 0)
+        if is_water or is_built_up:
+            grade, reason = "N", "ข้อมูลดาวเทียมตรวจพบแหล่งน้ำหรือสิ่งปลูกสร้าง จึงไม่แนะนำปลูกในสภาพปัจจุบัน"
+        elif official_grade and coverage_pct >= 50:
+            grade = official_grade
+            reason = f"LDD Zoning: {grade} ครอบคลุม {zoning.get('area_share_pct', {}).get(grade, 0)}% ของแปลง"
+        else:
+            grade, reason = "NO_DATA", "LDD Zoning ไม่มีข้อมูลครอบคลุมเพียงพอสำหรับพืชนี้ จึงไม่จัดเกรด"
+        results.append({
+            "id": crop["id"], "name": crop["name"], "category": crop["category"],
+            "icon_emoji": crop["icon_emoji"], "grade": grade,
+            "fao_label": labels.get(grade, "ไม่มีข้อมูล LDD"),
+            "match_percentage": round(float(zoning.get("area_share_pct", {}).get(grade, 0) or 0)),
+            "description": crop["description"], "limiting_factors": [reason],
+            "is_masked_out": grade == "N", "mask_reason": reason,
+            "ldd_data_available": grade in labels,
+        })
+    priority = {"S1": 4, "S2": 3, "S3": 2, "N": 1, "NO_DATA": 0}
+    results.sort(key=lambda item: priority[item["grade"]], reverse=True)
+    return results
+
 def filter_crops(
     slope_deg: float = 0.0,
     soil_ph: float = 6.5,
