@@ -12,6 +12,17 @@ import { SavedParcelItem } from "@/app/analyze/result/[id]/components/save-parce
 const MAX_ALLOWED_RAI = 200;
 const RECOMMENDED_MAX_RAI = 80;
 
+function boundsFromPolygon(coords: [number, number][]) {
+  const latitudes = coords.map(([lat]) => lat);
+  const longitudes = coords.map(([, lon]) => lon);
+  return {
+    latMin: Math.min(...latitudes).toFixed(7),
+    latMax: Math.max(...latitudes).toFixed(7),
+    lonMin: Math.min(...longitudes).toFixed(7),
+    lonMax: Math.max(...longitudes).toFixed(7),
+  };
+}
+
 // Dynamically import map component with SSR disabled to prevent Leaflet window errors
 const SatelliteMap = dynamic(() => import("./satellite-map"), {
   ssr: false,
@@ -94,6 +105,8 @@ export default function AreaSelectionClient() {
   const handleSelectSavedParcel = (parcel: SavedParcelItem) => {
     if (parcel.polygon && parcel.polygon.length >= 3) {
       setActivePolygon(parcel.polygon);
+      setCoordinateBounds(boundsFromPolygon(parcel.polygon));
+      setCoordinateError(null);
       setAreaRai(parcel.area_rai);
       setAreaHa(parcel.area_ha);
       setFlyToCoords({ lat: parcel.lat, lng: parcel.lng, zoom: 16 });
@@ -120,6 +133,8 @@ export default function AreaSelectionClient() {
     ha: number
   ) => {
     setActivePolygon(coords);
+    setCoordinateBounds(boundsFromPolygon(coords));
+    setCoordinateError(null);
     setAreaRai(rai);
     setAreaHa(ha);
   };
@@ -127,6 +142,8 @@ export default function AreaSelectionClient() {
   // Handle clearing polygon
   const handleClearPolygon = () => {
     setActivePolygon(null);
+    setCoordinateBounds({ latMin: "", latMax: "", lonMin: "", lonMax: "" });
+    setCoordinateError(null);
     setAreaRai(0);
     setAreaHa(0);
     setActiveTool("polygon");
