@@ -337,7 +337,7 @@ export default function SatelliteMap({
             },
           }).addTo(map);
         }
-        setZoningStatus(data?.zoom_required ? "ซูมเข้าอีกนิดเพื่อแสดงระดับความเหมาะสม" : data?.features?.length ? `แสดง ${data.features.length} เขตข้อมูล LDD` : "บริเวณนี้ไม่มีข้อมูล LDD สำหรับพืชนี้");
+        setZoningStatus(!data?.available ? "กำลังเตรียมข้อมูล LDD บนเซิร์ฟเวอร์ โปรดลองใหม่อีกครั้งในไม่กี่นาที" : data?.zoom_required ? "ซูมเข้าอีกนิดเพื่อแสดงระดับความเหมาะสม" : data?.features?.length ? `แสดง ${data.features.length} เขตข้อมูล LDD` : "บริเวณนี้ไม่มีข้อมูล LDD สำหรับพืชนี้");
       } catch (loadError) {
         if ((loadError as Error).name !== "AbortError") {
           clearLayer();
