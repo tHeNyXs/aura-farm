@@ -1,4 +1,4 @@
-import { FAOSuitabilityClass } from "./types";
+import type { FAOSuitabilityClass } from "./types";
 
 type Band = { s1: [number, number]; s2: [number, number]; s3: [number, number] };
 type Criteria = { slope: Band; rainfall: Band; ph: Band; temperature?: Band; altitude?: Band };
