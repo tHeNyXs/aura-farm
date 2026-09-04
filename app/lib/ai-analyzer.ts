@@ -1,12 +1,10 @@
 import * as turf from "@turf/turf";
 import { AnalysisResult, Crop, FAOSuitabilityClass, OAEBenchmarkValidation } from "./types";
 import { CROP_DATABASE } from "./crop-database";
-import { resolveSoilGroup, THAILAND_SOIL_GROUPS } from "./soil-groups-thailand";
-import { evaluateCropConstraints } from "./constraint-mask";
+import { resolveSoilGroup } from "./soil-groups-thailand";
 import { calculateLevel1OverallLandSuitability } from "./ahp-overall";
-import { calculateLevel2CropSuitability } from "./ahp-crop-specific";
 import { validateWithOAEBenchmark } from "./oae-validator";
-import { classifyFAOSuitability } from "./fao-classifier";
+import { evaluateFaoExcelCriteria } from "./fao-excel-criteria";
 
 export interface AIAnalysisInput {
   polygon: [number, number][];
@@ -54,6 +52,7 @@ export interface AIAnalysisInput {
     slope_degrees?: number;
     annual_rainfall_mm?: number;
     lst_temp_celsius?: number;
+    soil_ph?: number;
     zoning?: {
       available: boolean;
       source?: string;
@@ -185,7 +184,9 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
 
   // 6. Soil Group & Soil pH (LDD & SoilGrids)
   const soilGroup = resolveSoilGroup(centerLat, centerLng, slopeDegrees, elevationAmsl, soilMoisture, ndviValue, isWaterBody);
-  const soilPh = Number(((soilGroup.phRange[0] + soilGroup.phRange[1]) / 2).toFixed(1));
+  // pH is an explicit analysis input from the service, not an inferred LDD
+  // soil-group value.  The API's documented default is used when none is sent.
+  const soilPh = input.real_satellite?.soil_ph ?? 6.5;
 
   // 6-Month NDVI seasonal trend
   const ndviTrend = [
@@ -220,49 +221,29 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
   // =========================================================
   // LEVEL 2: Crop-Specific Suitability (Filtered by Thresholds)
   // =========================================================
-  const parcelMetrics = {
-    slopeDegrees,
-    soilMoisture,
-    elevationAmsl,
-    annualRainfallMm: rainfallMm,
-    surfaceTempCelsius: surfaceTemp,
-    ndviValue,
-    soilGroup,
-    soilPh,
-  };
-
   const oaeValidations: OAEBenchmarkValidation[] = [];
-  const zoningByCrop = new Map(
-    input.real_satellite?.zoning?.available
-      ? (input.real_satellite.zoning.crops || []).map((item) => [item.crop_id, item])
-      : []
-  );
-
-  const rankedCrops: Crop[] = CROP_DATABASE.map((crop) => {
-    const zoning = zoningByCrop.get(crop.id);
-    const hasLddGrade = Boolean(zoning?.official_grade && zoning.coverage_pct >= 50);
-    const lddDataAvailable = Boolean(input.real_satellite?.zoning?.available && hasLddGrade);
+  const rankedCrops: Crop[] = CROP_DATABASE.flatMap((crop) => {
+    const evaluation = evaluateFaoExcelCriteria(crop.id, {
+      slopeDegrees,
+      rainfallMm,
+      ph: soilPh,
+      temperatureC: surfaceTemp,
+      altitudeM: elevationAmsl,
+    });
+    // Do not manufacture a recommendation for a crop that is absent from the
+    // supplied FAO workbook (for example, mango).
+    if (!evaluation) return [];
     const satelliteExcluded = isWaterMasked || isBuiltUpMasked;
-    // Crop suitability grades are exclusively the official LDD Zoning result.
-    // Satellite data can only reject a currently unusable surface (water/building).
     const finalFaoClass: FAOSuitabilityClass = satelliteExcluded
       ? "N"
-      : hasLddGrade
-      ? zoning!.official_grade!
-      : "N";
-    const finalMatchPercentage = hasLddGrade
-      ? Math.round(zoning!.area_share_pct[finalFaoClass] || 0)
-      : 0;
+      : evaluation.faoClass;
+    const finalMatchPercentage = satelliteExcluded ? 0 : evaluation.score;
     const finalFaoLabel = satelliteExcluded
       ? "ไม่แนะนำในสภาพปัจจุบัน (N)"
-      : hasLddGrade
-      ? ({ S1: "เหมาะสมมาก (S1)", S2: "เหมาะสมปานกลาง (S2)", S3: "เหมาะสมน้อย (S3)", N: "ไม่แนะนำ (N)" } as const)[finalFaoClass]
-      : "ไม่มีข้อมูล LDD";
-    const zoningFactor = satelliteExcluded
+      : evaluation.label;
+    const evaluationFactor = satelliteExcluded
       ? "ดาวเทียมตรวจพบว่าน้ำหรือสิ่งปลูกสร้าง จึงไม่แนะนำปลูกในสภาพปัจจุบัน"
-      : hasLddGrade
-      ? `LDD Zoning: ${finalFaoClass} ครอบคลุม ${zoning!.area_share_pct[finalFaoClass]}% ของแปลง`
-      : "LDD Zoning: ไม่มีข้อมูลครอบคลุมเพียงพอสำหรับพืชนี้ จึงไม่จัดเกรด";
+      : `ประเมินตามเกณฑ์ FAO ในไฟล์ที่ส่ง: ${evaluation.factors.map((factor) => `${factor.name} ${factor.value.toFixed(1)}${factor.unit} = ${factor.result}`).join(", ")}`;
 
     // OAE Yield Benchmark Validation
     const oaeVal = validateWithOAEBenchmark(crop.id, finalFaoClass);
@@ -281,7 +262,7 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
     }
 
     const cautions = [...crop.cautions_template];
-    if (zoningFactor) cautions.unshift(zoningFactor);
+    if (evaluationFactor) cautions.unshift(evaluationFactor);
 
     return {
       id: crop.id,
@@ -302,16 +283,16 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
       description: crop.description,
       pros,
       cautions,
-      limiting_factors: hasLddGrade ? [] : [zoningFactor],
-      is_masked_out: satelliteExcluded || (hasLddGrade && finalFaoClass === "N"),
+      limiting_factors: satelliteExcluded ? [evaluationFactor] : evaluation.factors.filter((factor) => factor.result !== "S1").map((factor) => `${factor.name} = ${factor.result}`),
+      is_masked_out: satelliteExcluded || finalFaoClass === "N",
       mask_reason: satelliteExcluded
-        ? zoningFactor
-        : hasLddGrade && finalFaoClass === "N"
-        ? "LDD Zoning จัดพื้นที่นี้เป็นไม่เหมาะสมสำหรับพืชชนิดนี้"
-        : "ไม่มีข้อมูล LDD ครอบคลุมเพียงพอสำหรับพืชนี้",
+        ? evaluationFactor
+        : finalFaoClass === "N"
+        ? "มีอย่างน้อยหนึ่งปัจจัยที่ไม่อยู่ในเกณฑ์ FAO ของพืชชนิดนี้"
+        : undefined,
       source_citation: crop.source_citation,
       oae_yield_benchmark: oaeVal ? `สถิติ สศก.: ${oaeVal.estimated_yield_kg_rai} ${oaeVal.yield_match_status}` : undefined,
-      ldd_data_available: lddDataAvailable,
+      ldd_data_available: true,
     };
   }).sort((a, b) => {
     const classPriority: Record<FAOSuitabilityClass, number> = {
@@ -330,17 +311,16 @@ export function analyzeLandParcel(input: AIAnalysisInput): {
     input.location_name || (isWaterMasked ? `พื้นที่แหล่งน้ำ (${rai} ไร่)` : isBuiltUpMasked ? `พื้นที่สิ่งปลูกสร้าง/อาคาร (${rai} ไร่)` : `แปลงสำรวจ ${regionInfo.regionName} (${rai} ไร่)`);
   const generatedId = input.custom_id || `geo-${centerLat.toFixed(4)}_${centerLng.toFixed(4)}_${Date.now()}`;
 
-  const lddRankedCrops = rankedCrops.filter((crop) => crop.ldd_data_available || crop.is_masked_out);
-  const s1Count = lddRankedCrops.filter((c) => c.fao_class === "S1").length;
-  const s2Count = lddRankedCrops.filter((c) => c.fao_class === "S2").length;
-  const s3Count = lddRankedCrops.filter((c) => c.fao_class === "S3").length;
-  const nCount = lddRankedCrops.filter((c) => c.fao_class === "N").length;
+  const s1Count = rankedCrops.filter((c) => c.fao_class === "S1").length;
+  const s2Count = rankedCrops.filter((c) => c.fao_class === "S2").length;
+  const s3Count = rankedCrops.filter((c) => c.fao_class === "S3").length;
+  const nCount = rankedCrops.filter((c) => c.fao_class === "N").length;
 
   const insightText = isWaterMasked
     ? `⚠️ พื้นที่นี้ตรวจพบเป็นแหล่งน้ำหรือพื้นที่ชุ่มน้ำถาวร${mndwiValue !== undefined ? ` (MNDWI = ${mndwiValue.toFixed(2)})` : ""} → ไม่แนะนำให้เพาะปลูกพืชบก (เกรด N)`
     : isBuiltUpMasked
     ? `⚠️ พื้นที่นี้ตรวจพบเป็นสิ่งปลูกสร้าง (อาคารคอนกรีต: NDBI = ${ndbiValue.toFixed(2)} > 0.10, NDVI = ${ndviValue.toFixed(2)} < 0.20) → ไม่ประเมินความเหมาะสมทางการเกษตร (เกรด N)`
-    : `พื้นที่นี้เป็นพืชคลุมดิน / แปลงเกษตร (NDBI = ${ndbiValue.toFixed(2)}, NDVI = ${ndviValue.toFixed(2)}) → ผลความเหมาะสมของพืชใช้เฉพาะข้อมูล LDD Zoning ที่ครอบคลุมแปลง: S1 ${s1Count} ชนิด, S2 ${s2Count} ชนิด, S3 ${s3Count} ชนิด, N ${nCount} ชนิด ส่วนพืชที่ไม่มีข้อมูล LDD จะไม่ถูกจัดเกรด`;
+    : `พื้นที่นี้เป็นพืชคลุมดิน / แปลงเกษตร (NDBI = ${ndbiValue.toFixed(2)}, NDVI = ${ndviValue.toFixed(2)}) → ประเมินตามเกณฑ์ FAO จากไฟล์ที่ส่ง: S1 ${s1Count} ชนิด, S2 ${s2Count} ชนิด, S3 ${s3Count} ชนิด, N ${nCount} ชนิด โดยใช้เฉพาะปัจจัยที่ตรวจวัดได้`;
 
   let statusLabel: "เหมาะสมมาก" | "ปานกลาง" | "ต้องปรับปรุง" = "เหมาะสมมาก";
   let statusColor = "#6B8E5A";

@@ -5,7 +5,6 @@ import { getAnalysisById } from "@/app/lib/analysis-store";
 import Navbar from "@/app/components/ui/navbar";
 import Footer from "@/app/components/ui/footer";
 import SaveParcelButton from "./components/save-parcel-button";
-import { FAOSuitabilityClass } from "@/app/lib/types";
 
 export const maxDuration = 60;
 
@@ -51,8 +50,7 @@ export default async function AnalysisResultPage({ params, searchParams }: PageP
   }
   const { result: data, rankedCrops } = analysis;
 
-  // Missing LDD coverage is not an N grade and must not make the parcel look unsuitable.
-  const gradedCrops = rankedCrops.filter((crop) => crop.ldd_data_available || crop.is_masked_out);
+  const gradedCrops = rankedCrops;
   const s1Crops = gradedCrops.filter((c) => c.fao_class === "S1");
   const s2Crops = gradedCrops.filter((c) => c.fao_class === "S2");
   const s3Crops = gradedCrops.filter((c) => c.fao_class === "S3");
@@ -393,7 +391,7 @@ export default async function AnalysisResultPage({ params, searchParams }: PageP
                 </div>
                 <div className={`${heroTheme.miniPillBg} rounded-xl p-3 flex flex-col gap-0.5 border`}>
                   <span className={`text-[10px] ${heroTheme.miniPillLabel} uppercase tracking-wider font-semibold`}>เกณฑ์ประเมิน</span>
-                  <span className="text-xs font-bold text-white">FAO & LDD</span>
+                  <span className="text-xs font-bold text-white">FAO (ไฟล์เกณฑ์)</span>
                 </div>
                 <div className={`${heroTheme.miniPillBg} rounded-xl p-3 flex flex-col gap-0.5 border`}>
                   <span className={`text-[10px] ${heroTheme.miniPillLabel} uppercase tracking-wider font-semibold`}>สถานะดาวเทียม</span>
@@ -558,7 +556,7 @@ export default async function AnalysisResultPage({ params, searchParams }: PageP
                 </div>
               </div>
               <span className="px-4 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold rounded-xl self-start sm:self-auto shadow-2xs">
-                ฐานข้อมูล 62 กลุ่มชุดดิน (กรมพัฒนาที่ดิน LDD)
+                ข้อมูลสภาพดินประกอบการแสดงผล
               </span>
             </div>
 
@@ -626,7 +624,7 @@ export default async function AnalysisResultPage({ params, searchParams }: PageP
               ดูรายชื่อพืชเศรษฐกิจครบทั้ง {rankedCrops.length} ชนิด
             </h3>
             <p className="text-xs md:text-sm text-emerald-100/90 max-w-xl font-light">
-              กรองค่าความเหมาะสมระดับที่ 1 ต่อด้วยพืชเศรษฐกิจหลักตามฐานข้อมูล LDD พร้อมคู่มือคำแนะนำการปลูกและการสอบทานสถิติ สศก.
+              ประเมินพืชตามเกณฑ์ FAO ในไฟล์ที่กำหนด พร้อมคงการตรวจจับอาคารและแหล่งน้ำจากดาวเทียม
             </p>
           </div>
 

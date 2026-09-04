@@ -1,4 +1,4 @@
-import { Crop, FAOSuitabilityClass } from "./types";
+import { FAOSuitabilityClass } from "./types";
 
 export interface LDDCriteriaRange {
   s1: [number, number];
@@ -630,9 +630,8 @@ const RAW_CROP_DATABASE: CropRequirement[] = [
   },
 ];
 
-// The downloadable LDD Zoning dataset contains these exact 13 crop groups.
-// Rice is one LDD layer, so the former two rice varieties are intentionally
-// represented as a single "rice" result. Mango has no corresponding layer.
+// The supplied FAO workbook is evaluated as one rice result. Mango is absent
+// from that workbook, so it is not included in the recommendation set.
 const riceReference = RAW_CROP_DATABASE.find((crop) => crop.id === "jasmine_rice");
 if (!riceReference) {
   throw new Error("ไม่พบข้อมูลตั้งต้นสำหรับพืชข้าว")
@@ -644,8 +643,8 @@ export const CROP_DATABASE: CropRequirement[] = [
     id: "rice",
     name: "ข้าว (Rice)",
     image_url: "/images/crops/jasmine_rice.jpg",
-    description: "ผลประเมินใช้ชั้นข้อมูลเขตความเหมาะสมของที่ดินสำหรับข้าวจากกรมพัฒนาที่ดิน (LDD Zoning)",
-    source_citation: "เขตความเหมาะสมของที่ดินสำหรับการปลูกข้าว กรมพัฒนาที่ดิน (LDD Zoning)",
+    description: "ผลประเมินใช้เกณฑ์ความเหมาะสมของที่ดินตามไฟล์ FAO ที่กำหนด",
+    source_citation: "เกณฑ์ความเหมาะสมที่ดิน_13พืชเศรษฐกิจ_FAO.xlsx",
   },
   ...RAW_CROP_DATABASE.filter(
     (crop) => !["jasmine_rice", "lowland_rice", "mango"].includes(crop.id)

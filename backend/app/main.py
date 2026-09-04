@@ -4,8 +4,6 @@ Aura Farm v2.0 - FastAPI Main Orchestration Engine
 """
 
 import logging
-import asyncio
-from contextlib import asynccontextmanager, suppress
 from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -15,43 +13,16 @@ from datetime import datetime
 from app.gee_client import fetch_gee_layers, get_gee_status
 from app.ndbi_mask import evaluate_ndbi_hard_mask
 from app.suitability_level1 import calculate_level1_suitability
-from app.crop_filter_level2 import filter_crops_from_ldd_zoning
 from app.oae_validation_level3 import validate_with_oae
-from app.zoning_service import lookup_zoning, zoning_map_features
-from app.zoning_bootstrap import provision_zoning_database
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("main_orchestrator")
 
-zoning_bootstrap_status: Dict[str, Any] = {"available": False, "state": "starting"}
-
-
-async def provision_zoning_in_background() -> None:
-    """Prepare the large zoning archive without delaying the web server port."""
-    global zoning_bootstrap_status
-    zoning_bootstrap_status = await asyncio.to_thread(provision_zoning_database)
-
-
-@asynccontextmanager
-async def lifespan(_: FastAPI):
-    # Render needs a listening port promptly. The nationwide LDD database can take
-    # longer to download than its port scan, so provision it after startup instead.
-    zoning_task = asyncio.create_task(provision_zoning_in_background())
-    try:
-        yield
-    finally:
-        if not zoning_task.done():
-            zoning_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await zoning_task
-
-
 app = FastAPI(
     title="Aura Farm v2.0 - 3-Level GIS Multi-Criteria AI Land Evaluation Engine",
     version="2.0.0",
     description="Live Satellite Analysis Engine powered by Google Earth Engine, Layer 9 NDBI Hard Mask, AHP 8x8 Matrix & OAE Yield Benchmark",
-    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -91,7 +62,7 @@ async def health_check():
         gee_authenticated=status_data["gee_authenticated"],
         error=status_data.get("error"),
         timestamp=status_data["timestamp"],
-        zoning=zoning_bootstrap_status,
+        zoning={"available": False, "state": "disabled", "reason": "การวิเคราะห์ไม่ใช้ข้อมูล LDD Zoning"},
     )
 
 @app.post("/api/v1/zoning-overlay")
@@ -100,7 +71,7 @@ async def zoning_overlay(req: ZoningRequest):
     if len(req.polygon) < 3:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Polygon geometry ไม่ถูกต้อง")
     try:
-        return lookup_zoning(req.polygon)
+        return {"available": False, "crops": [], "reason": "การวิเคราะห์ไม่ใช้ข้อมูล LDD Zoning"}
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
 
@@ -112,7 +83,7 @@ async def zoning_map(
 ):
     """Visible-bounds LDD Zoning layer for the interactive map."""
     try:
-        return zoning_map_features(crop_id, west, south, east, north, zoom)
+        return {"type": "FeatureCollection", "features": []}
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
 
@@ -175,14 +146,9 @@ async def evaluate_land_parcel(req: EvaluateRequest):
             irrigation_score=req.irrigation_score or 0.80
         )
 
-        zoning_result = lookup_zoning(req.polygon)
-        # Step 4: Crop grades come exclusively from official LDD Zoning coverage.
-        # Satellite data is used only to reject water/buildings at the present time.
-        level2_crops = filter_crops_from_ldd_zoning(
-            zoning_result,
-            is_built_up=ndbi_result["is_built_up"],
-            is_water=is_water_body,
-        )
+        # The Next.js evaluator applies the supplied FAO workbook criteria.
+        # Do not emit the obsolete LDD-based crop calculation from this service.
+        level2_crops = []
 
         # Step 5: Level 3 - OAE Benchmark Yield Validation
         top_crop = next((crop for crop in level2_crops if crop["grade"] != "NO_DATA"), None)
@@ -205,11 +171,12 @@ async def evaluate_land_parcel(req: EvaluateRequest):
             "slope_degrees": gee_data["slope_degrees"],
             "annual_rainfall_mm": gee_data["annual_rainfall_mm"],
             "lst_temp_celsius": gee_data["lst_temp_celsius"],
+            "soil_ph": req.soil_ph or 6.5,
             "land_use_code": gee_data["land_use_code"],
             "land_use_label": gee_data["land_use_label"],
             "is_built_up": ndbi_result["is_built_up"],
             "is_water": is_water_body,
-            "zoning": zoning_result,
+            "zoning": {"available": False, "crops": [], "reason": "การวิเคราะห์ไม่ใช้ข้อมูล LDD Zoning"},
             "capture_date": datetime.now().strftime("%Y-%m-%d"),
             "level1": level1_result,
             "level2": level2_crops,
