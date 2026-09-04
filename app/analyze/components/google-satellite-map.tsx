@@ -12,6 +12,7 @@ interface GoogleSatelliteMapProps {
   selectedPolygon: LatLng[] | null;
   onPolygonChange: (coords: LatLng[], areaRai: number, areaHa: number) => void;
   flyToCoords?: { lat: number; lng: number; zoom?: number } | null;
+  zoningCropId?: string | null;
 }
 
 declare global {
@@ -21,6 +22,13 @@ declare global {
 }
 
 const GOOGLE_SCRIPT_ID = "aura-farm-google-maps";
+
+const ZONING_STYLES: Record<string, { fillColor: string; strokeColor: string; label: string }> = {
+  S1: { fillColor: "#16a34a", strokeColor: "#15803d", label: "เหมาะสมมาก" },
+  S2: { fillColor: "#eab308", strokeColor: "#ca8a04", label: "เหมาะสมปานกลาง" },
+  S3: { fillColor: "#f97316", strokeColor: "#ea580c", label: "มีข้อจำกัด" },
+  N: { fillColor: "#dc2626", strokeColor: "#b91c1c", label: "ไม่เหมาะสม" },
+};
 
 function loadGoogleMaps(apiKey: string): Promise<any> {
   if (window.google?.maps?.Map) return Promise.resolve(window.google.maps);
@@ -50,6 +58,7 @@ export default function GoogleSatelliteMap({
   selectedPolygon,
   onPolygonChange,
   flyToCoords,
+  zoningCropId,
 }: GoogleSatelliteMapProps) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -63,8 +72,12 @@ export default function GoogleSatelliteMap({
   const drawingPointsRef = useRef<LatLng[]>([]);
   const currentCoordsRef = useRef<LatLng[]>([]);
   const rectangleStartRef = useRef<LatLng | null>(null);
+  const zoningLayerRef = useRef<any>(null);
+  const zoningRequestRef = useRef<AbortController | null>(null);
+  const zoningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [zoningStatus, setZoningStatus] = useState<string | null>(null);
 
   const calculateArea = useCallback((coords: LatLng[]) => {
     if (coords.length < 3) return { rai: 0, ha: 0 };
@@ -115,6 +128,11 @@ export default function GoogleSatelliteMap({
             strictBounds: false,
           },
         });
+        zoningLayerRef.current = new maps.Data({ map: mapRef.current });
+        zoningLayerRef.current.setStyle((feature: any) => {
+          const style = ZONING_STYLES[feature.getProperty("suitability")] || ZONING_STYLES.N;
+          return { ...style, fillOpacity: 0.38, strokeOpacity: 0.9, strokeWeight: 1 };
+        });
         setMapReady(true);
 
         if (searchInputRef.current && maps.places?.Autocomplete) {
@@ -145,10 +163,82 @@ export default function GoogleSatelliteMap({
       polygonListenersRef.current = [];
       polygonRef.current?.setMap(null);
       temporaryLineRef.current?.setMap(null);
+      zoningRequestRef.current?.abort();
+      if (zoningTimerRef.current) clearTimeout(zoningTimerRef.current);
+      zoningLayerRef.current?.setMap(null);
+      zoningLayerRef.current = null;
       mapRef.current = null;
       setMapReady(false);
     };
   }, [apiKey]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const maps = mapsRef.current;
+    const layer = zoningLayerRef.current;
+    if (!map || !maps || !layer) return;
+
+    const clearLayer = () => layer.forEach((feature: any) => layer.remove(feature));
+    if (!zoningCropId) {
+      zoningRequestRef.current?.abort();
+      clearLayer();
+      setZoningStatus(null);
+      return;
+    }
+
+    const loadLayer = async () => {
+      const bounds = map.getBounds?.();
+      const zoom = Math.round(map.getZoom?.() || 0);
+      if (!bounds || zoom < 11) {
+        clearLayer();
+        setZoningStatus("ซูมเข้าอีกนิดเพื่อแสดงระดับความเหมาะสม");
+        return;
+      }
+
+      const southWest = bounds.getSouthWest();
+      const northEast = bounds.getNorthEast();
+      zoningRequestRef.current?.abort();
+      const controller = new AbortController();
+      zoningRequestRef.current = controller;
+      setZoningStatus("กำลังโหลดชั้นข้อมูล LDD...");
+
+      try {
+        const params = new URLSearchParams({
+          crop_id: zoningCropId,
+          west: String(southWest.lng()),
+          south: String(southWest.lat()),
+          east: String(northEast.lng()),
+          north: String(northEast.lat()),
+          zoom: String(zoom),
+        });
+        const response = await fetch(`/api/zoning-map?${params}`, { signal: controller.signal, cache: "no-store" });
+        if (!response.ok) throw new Error("ไม่สามารถโหลดข้อมูล LDD ได้");
+        const data = await response.json();
+        if (controller.signal.aborted) return;
+        clearLayer();
+        if (data?.features?.length) layer.addGeoJson(data);
+        setZoningStatus(data?.zoom_required ? "ซูมเข้าอีกนิดเพื่อแสดงระดับความเหมาะสม" : data?.features?.length ? `แสดง ${data.features.length} เขตข้อมูล LDD` : "บริเวณนี้ไม่มีข้อมูล LDD สำหรับพืชนี้");
+      } catch (loadError) {
+        if ((loadError as Error).name !== "AbortError") {
+          clearLayer();
+          setZoningStatus("ยังโหลดชั้นข้อมูล LDD ไม่สำเร็จ");
+        }
+      }
+    };
+
+    const scheduleLoad = () => {
+      if (zoningTimerRef.current) clearTimeout(zoningTimerRef.current);
+      zoningTimerRef.current = setTimeout(loadLayer, 350);
+    };
+    const idleListener = map.addListener("idle", scheduleLoad);
+    scheduleLoad();
+
+    return () => {
+      maps.event.removeListener(idleListener);
+      zoningRequestRef.current?.abort();
+      if (zoningTimerRef.current) clearTimeout(zoningTimerRef.current);
+    };
+  }, [zoningCropId, mapReady]);
 
   useEffect(() => {
     if (selectedPolygon) currentCoordsRef.current = selectedPolygon;
@@ -258,7 +348,7 @@ export default function GoogleSatelliteMap({
   return (
     <div className="w-full h-full relative">
       <div ref={mapContainerRef} className={`w-full h-full ${tool !== "none" ? "cursor-crosshair" : "cursor-default"}`} />
-      <div className="absolute top-3 left-3 z-10 w-[min(360px,calc(100%-24px))]">
+      <div className="absolute top-16 left-3 z-10 w-[min(360px,calc(100%-24px))]">
         <input
           ref={searchInputRef}
           aria-label="ค้นหาสถานที่"
@@ -266,6 +356,18 @@ export default function GoogleSatelliteMap({
           className="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-lg outline-none focus:border-emerald-700"
         />
       </div>
+      {zoningCropId && (
+        <div className="absolute right-3 top-3 z-10 w-48 rounded-lg border border-slate-200 bg-white/95 p-3 text-xs text-slate-800 shadow-lg backdrop-blur-sm">
+          <div className="mb-2 font-bold text-slate-900">ระดับความเหมาะสม LDD</div>
+          {Object.entries(ZONING_STYLES).map(([level, style]) => (
+            <div key={level} className="mb-1 flex items-center gap-2 last:mb-0">
+              <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: style.fillColor }} />
+              <span><b>{level}</b> — {style.label}</span>
+            </div>
+          ))}
+          {zoningStatus && <div className="mt-2 border-t border-slate-200 pt-2 text-[11px] text-slate-600">{zoningStatus}</div>}
+        </div>
+      )}
       {error && <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/80 p-6 text-center text-sm text-white">{error}</div>}
     </div>
   );

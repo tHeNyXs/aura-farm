@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DrawingTool } from "./satellite-map";
 import { SavedParcelItem } from "@/app/analyze/result/[id]/components/save-parcel-button";
+import { CROP_DATABASE } from "@/app/lib/crop-database";
 
 // Maximum allowable area size in Rai for optimal satellite resolution
 const MAX_ALLOWED_RAI = 200;
@@ -61,6 +62,7 @@ export default function AreaSelectionClient() {
 
   // Drawing Tool State (Default to 'polygon')
   const [activeTool, setActiveTool] = useState<DrawingTool>("polygon");
+  const [zoningCropId, setZoningCropId] = useState("");
 
   // Saved Parcels State from LocalStorage
   const [savedParcels, setSavedParcels] = useState<SavedParcelItem[]>([]);
@@ -472,18 +474,20 @@ export default function AreaSelectionClient() {
             selectedPolygon={activePolygon}
             onPolygonChange={handlePolygonChange}
             flyToCoords={flyToCoords}
+            zoningCropId={zoningCropId || null}
           /> : <SatelliteMap
             tool={activeTool}
             onToolChange={setActiveTool}
             selectedPolygon={activePolygon}
             onPolygonChange={handlePolygonChange}
             flyToCoords={flyToCoords}
+            zoningCropId={zoningCropId || null}
           />}
 
           {/* ═══════════════════════════════════════════
               DRAWING TOOLBAR (Top-Left on Map)
              ═══════════════════════════════════════════ */}
-          <div className="absolute top-5 left-5 z-[1000] bg-panel/95 backdrop-blur-sm border border-line rounded-lg p-1.5 flex items-center gap-1.5 shadow-md">
+          <div className="absolute top-5 left-5 z-[1000] max-w-[calc(100%-40px)] bg-panel/95 backdrop-blur-sm border border-line rounded-lg p-1.5 flex flex-wrap items-center gap-1.5 shadow-md">
             <button
               onClick={() =>
                 setActiveTool(activeTool === "polygon" ? "none" : "polygon")
@@ -523,6 +527,23 @@ export default function AreaSelectionClient() {
             >
               🗑️ ล้าง
             </button>
+
+            <span className="hidden sm:block w-px h-4 bg-line mx-0.5" />
+
+            <label className="flex items-center gap-1.5 px-1 text-xs font-semibold text-primary">
+              <span className="hidden md:inline">ชั้น LDD:</span>
+              <select
+                value={zoningCropId}
+                onChange={(event) => setZoningCropId(event.target.value)}
+                aria-label="เลือกพืชเพื่อดูระดับความเหมาะสมจาก LDD"
+                className="max-w-48 rounded-md border border-line bg-bg px-2 py-1.5 text-xs font-medium text-primary-dark outline-none focus:border-primary"
+              >
+                <option value="">ไม่แสดงระดับพืช</option>
+                {CROP_DATABASE.map((crop) => (
+                  <option key={crop.id} value={crop.id}>{crop.icon_emoji} {crop.name}</option>
+                ))}
+              </select>
+            </label>
           </div>
 
           {/* ═══════════════════════════════════════════

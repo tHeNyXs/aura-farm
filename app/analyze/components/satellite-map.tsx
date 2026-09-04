@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import L from "leaflet";
 import * as turf from "@turf/turf";
 
@@ -12,7 +12,15 @@ interface SatelliteMapProps {
   selectedPolygon: [number, number][] | null;
   onPolygonChange: (coords: [number, number][], areaRai: number, areaHa: number) => void;
   flyToCoords?: { lat: number; lng: number; zoom?: number } | null;
+  zoningCropId?: string | null;
 }
+
+const ZONING_STYLES: Record<string, { fillColor: string; color: string; label: string }> = {
+  S1: { fillColor: "#16a34a", color: "#15803d", label: "เหมาะสมมาก" },
+  S2: { fillColor: "#eab308", color: "#ca8a04", label: "เหมาะสมปานกลาง" },
+  S3: { fillColor: "#f97316", color: "#ea580c", label: "มีข้อจำกัด" },
+  N: { fillColor: "#dc2626", color: "#b91c1c", label: "ไม่เหมาะสม" },
+};
 
 export default function SatelliteMap({
   tool,
@@ -20,6 +28,7 @@ export default function SatelliteMap({
   selectedPolygon,
   onPolygonChange,
   flyToCoords,
+  zoningCropId,
 }: SatelliteMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -29,6 +38,10 @@ export default function SatelliteMap({
   const tempDrawingLayerRef = useRef<L.Polyline | null>(null);
   const isDraggingRef = useRef<boolean>(false);
   const currentCoordsRef = useRef<[number, number][]>([]);
+  const zoningLayerRef = useRef<L.GeoJSON | null>(null);
+  const zoningRequestRef = useRef<AbortController | null>(null);
+  const zoningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [zoningStatus, setZoningStatus] = useState<string | null>(null);
 
   // DOM refs for overlay stats
   const gridCodeRef = useRef<HTMLSpanElement>(null);
@@ -265,10 +278,89 @@ export default function SatelliteMap({
     return () => {
       map.off("move", updateStats);
       map.off("zoomend", updateStats);
+      zoningRequestRef.current?.abort();
+      if (zoningTimerRef.current) clearTimeout(zoningTimerRef.current);
       map.remove();
       mapInstanceRef.current = null;
     };
   }, []);
+
+  // Fetch only the zoning polygons in the current viewport. This keeps the nationwide
+  // LDD data responsive even on slower connections.
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    const clearLayer = () => {
+      zoningLayerRef.current?.remove();
+      zoningLayerRef.current = null;
+    };
+    if (!zoningCropId) {
+      zoningRequestRef.current?.abort();
+      clearLayer();
+      setZoningStatus(null);
+      return;
+    }
+
+    const loadLayer = async () => {
+      const zoom = Math.round(map.getZoom());
+      if (zoom < 11) {
+        clearLayer();
+        setZoningStatus("ซูมเข้าอีกนิดเพื่อแสดงระดับความเหมาะสม");
+        return;
+      }
+      const bounds = map.getBounds();
+      zoningRequestRef.current?.abort();
+      const controller = new AbortController();
+      zoningRequestRef.current = controller;
+      setZoningStatus("กำลังโหลดชั้นข้อมูล LDD...");
+
+      try {
+        const params = new URLSearchParams({
+          crop_id: zoningCropId,
+          west: String(bounds.getWest()),
+          south: String(bounds.getSouth()),
+          east: String(bounds.getEast()),
+          north: String(bounds.getNorth()),
+          zoom: String(zoom),
+        });
+        const response = await fetch(`/api/zoning-map?${params}`, { signal: controller.signal, cache: "no-store" });
+        if (!response.ok) throw new Error("ไม่สามารถโหลดข้อมูล LDD ได้");
+        const data = await response.json();
+        if (controller.signal.aborted) return;
+        clearLayer();
+        if (data?.features?.length) {
+          zoningLayerRef.current = L.geoJSON(data, {
+            style: (feature) => {
+              const style = ZONING_STYLES[String(feature?.properties?.suitability)] || ZONING_STYLES.N;
+              return { ...style, fillOpacity: 0.38, opacity: 0.9, weight: 1 };
+            },
+          }).addTo(map);
+        }
+        setZoningStatus(data?.zoom_required ? "ซูมเข้าอีกนิดเพื่อแสดงระดับความเหมาะสม" : data?.features?.length ? `แสดง ${data.features.length} เขตข้อมูล LDD` : "บริเวณนี้ไม่มีข้อมูล LDD สำหรับพืชนี้");
+      } catch (loadError) {
+        if ((loadError as Error).name !== "AbortError") {
+          clearLayer();
+          setZoningStatus("ยังโหลดชั้นข้อมูล LDD ไม่สำเร็จ");
+        }
+      }
+    };
+
+    const scheduleLoad = () => {
+      if (zoningTimerRef.current) clearTimeout(zoningTimerRef.current);
+      zoningTimerRef.current = setTimeout(loadLayer, 350);
+    };
+    map.on("moveend", scheduleLoad);
+    map.on("zoomend", scheduleLoad);
+    scheduleLoad();
+
+    return () => {
+      map.off("moveend", scheduleLoad);
+      map.off("zoomend", scheduleLoad);
+      zoningRequestRef.current?.abort();
+      if (zoningTimerRef.current) clearTimeout(zoningTimerRef.current);
+    };
+  }, [zoningCropId]);
 
   // Handle flyToCoords changes
   useEffect(() => {
@@ -413,6 +505,19 @@ export default function SatelliteMap({
           tool !== "none" ? "cursor-crosshair" : "cursor-default"
         }`}
       />
+
+      {zoningCropId && (
+        <div className="absolute right-3 top-3 z-[1000] w-48 rounded-lg border border-line bg-panel/95 p-3 text-xs text-ink-body shadow-lg backdrop-blur-sm pointer-events-none">
+          <div className="mb-2 font-bold text-primary-dark">ระดับความเหมาะสม LDD</div>
+          {Object.entries(ZONING_STYLES).map(([level, style]) => (
+            <div key={level} className="mb-1 flex items-center gap-2 last:mb-0">
+              <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: style.fillColor }} />
+              <span><b>{level}</b> — {style.label}</span>
+            </div>
+          ))}
+          {zoningStatus && <div className="mt-2 border-t border-line pt-2 text-[11px] text-ink-soft">{zoningStatus}</div>}
+        </div>
+      )}
 
       {/* Coordinate & Scale HUD Overlay at Bottom-Left */}
       <div className="absolute bottom-6 left-6 z-[1000] bg-panel/90 backdrop-blur-xs border border-line rounded px-3 py-1.5 flex items-center gap-3 font-mono text-[11px] text-ink-body shadow-md select-none pointer-events-none">

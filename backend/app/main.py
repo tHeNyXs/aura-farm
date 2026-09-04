@@ -6,7 +6,7 @@ Aura Farm v2.0 - FastAPI Main Orchestration Engine
 import logging
 import asyncio
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
@@ -17,7 +17,7 @@ from app.ndbi_mask import evaluate_ndbi_hard_mask
 from app.suitability_level1 import calculate_level1_suitability
 from app.crop_filter_level2 import filter_crops
 from app.oae_validation_level3 import validate_with_oae
-from app.zoning_service import lookup_zoning
+from app.zoning_service import lookup_zoning, zoning_map_features
 from app.zoning_bootstrap import provision_zoning_database
 
 # Setup logging
@@ -88,6 +88,18 @@ async def zoning_overlay(req: ZoningRequest):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Polygon geometry ไม่ถูกต้อง")
     try:
         return lookup_zoning(req.polygon)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
+
+@app.get("/api/v1/zoning-map")
+async def zoning_map(
+    crop_id: str = Query(..., min_length=1, max_length=64),
+    west: float = Query(...), south: float = Query(...), east: float = Query(...), north: float = Query(...),
+    zoom: int = Query(..., ge=6, le=20),
+):
+    """Visible-bounds LDD Zoning layer for the interactive map."""
+    try:
+        return zoning_map_features(crop_id, west, south, east, north, zoom)
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
 

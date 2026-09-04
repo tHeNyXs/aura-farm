@@ -7,7 +7,7 @@ from contextlib import closing
 from typing import Any, Dict, List, Optional, Sequence
 
 from shapely import wkb
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, mapping
 from shapely.ops import transform
 from pyproj import Transformer
 
@@ -82,3 +82,42 @@ def lookup_zoning(polygon_lat_lng: Sequence[Sequence[float]]) -> Dict[str, Any]:
         "source": "กรมพัฒนาที่ดิน (LDD) เขตความเหมาะสมของที่ดินสำหรับการปลูกพืชเศรษฐกิจ (Zoning)",
         "crops": crops,
     }
+
+
+def zoning_map_features(crop_id: str, west: float, south: float, east: float, north: float, zoom: int) -> Dict[str, Any]:
+    """Return simplified GeoJSON for one LDD crop layer within the visible map bounds."""
+    if not database_available():
+        return {"available": False, "reason": "ฐานข้อมูล Zoning ยังไม่ได้ติดตั้ง", "type": "FeatureCollection", "features": []}
+    if not crop_id or not all(char.islower() or char.isdigit() or char == "_" for char in crop_id):
+        raise ValueError("รหัสพืชไม่ถูกต้อง")
+    if not (-180 <= west < east <= 180 and -90 <= south < north <= 90):
+        raise ValueError("ขอบเขตแผนที่ไม่ถูกต้อง")
+
+    # Avoid returning country-sized detail when the user is zoomed far out.
+    max_span = 10.0 if zoom < 10 else 4.0 if zoom < 12 else 1.5
+    if east - west > max_span or north - south > max_span:
+        return {"available": True, "zoom_required": True, "type": "FeatureCollection", "features": []}
+
+    tolerance = 0.0003 if zoom < 12 else 0.0001 if zoom < 14 else 0.00003 if zoom < 16 else 0.00001
+    sql = """
+        SELECT suitability, geom_wkb
+        FROM zoning_features AS feature
+        INNER JOIN zoning_feature_index AS spatial_index ON spatial_index.id = feature.id
+        WHERE feature.crop_id = ?
+          AND spatial_index.min_lng <= ? AND spatial_index.max_lng >= ?
+          AND spatial_index.min_lat <= ? AND spatial_index.max_lat >= ?
+        LIMIT 3000
+    """
+    features: List[Dict[str, Any]] = []
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        for suitability, raw_geometry in conn.execute(sql, (crop_id, east, west, north, south)):
+            geometry = wkb.loads(raw_geometry)
+            simplified = geometry.simplify(tolerance, preserve_topology=True)
+            if simplified.is_empty:
+                continue
+            features.append({
+                "type": "Feature",
+                "properties": {"suitability": suitability},
+                "geometry": mapping(simplified),
+            })
+    return {"available": True, "zoom_required": False, "type": "FeatureCollection", "features": features}
