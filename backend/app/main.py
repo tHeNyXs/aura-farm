@@ -12,6 +12,7 @@ from datetime import datetime
 
 from app.gee_client import fetch_gee_layers, get_gee_status
 from app.ndbi_mask import evaluate_ndbi_hard_mask
+from app.soilgrids_client import get_soil_ph
 from app.suitability_level1 import calculate_level1_suitability
 from app.oae_validation_level3 import validate_with_oae
 
@@ -37,7 +38,7 @@ app.add_middleware(
 class EvaluateRequest(BaseModel):
     polygon: List[List[float]] = Field(..., description="List of [lat, lng] coordinates forming a closed polygon")
     days_history: Optional[int] = Field(180, description="History window in days for cloud-free satellite composite")
-    soil_ph: Optional[float] = Field(6.5, description="Soil pH value (default 6.5)")
+    soil_ph: Optional[float] = Field(None, description="Optional measured Soil pH override; otherwise retrieved from SoilGrids")
     irrigation_score: Optional[float] = Field(0.80, description="Irrigation accessibility score (default 0.80)")
 
 class HealthResponse(BaseModel):
@@ -106,7 +107,18 @@ async def evaluate_land_parcel(req: EvaluateRequest):
         # Step 1: ดึงข้อมูลสด 6 Layer จาก Google Earth Engine (พร้อมตรวจขนาดพื้นที่ <= 200 ไร่)
         gee_data = fetch_gee_layers(req.polygon, days_history=req.days_history or 180)
 
-        # Step 2: Layer 9 NDBI Built-up Hard Mask Check (Pre-filter)
+        # Step 2: Use a user-supplied field measurement when present. Otherwise
+        # retrieve SoilGrids pH at the polygon centre rather than assigning 6.5
+        # to every parcel.
+        centre_lat = sum(point[0] for point in req.polygon) / len(req.polygon)
+        centre_lon = sum(point[1] for point in req.polygon) / len(req.polygon)
+        if req.soil_ph is not None:
+            soil_ph = req.soil_ph
+            soil_ph_source = "user_measurement"
+        else:
+            soil_ph, soil_ph_source = get_soil_ph(centre_lat, centre_lon)
+
+        # Step 3: Layer 9 NDBI Built-up Hard Mask Check (Pre-filter)
         b8_nir = gee_data["b8_nir"]
         b4_red = gee_data["b4_red"]
         b11_swir = gee_data["b11_swir"]
@@ -143,11 +155,11 @@ async def evaluate_land_parcel(req: EvaluateRequest):
                 ),
             }
 
-        # Step 3: Level 1 - Overall Land Suitability Index (AHP Weighted Overlay - จันทองพูน และคณะ, 2565 NCCE27)
+        # Step 4: Level 1 - Overall Land Suitability Index (AHP Weighted Overlay - จันทองพูน และคณะ, 2565 NCCE27)
         level1_result = calculate_level1_suitability(
             gee_data=gee_data,
             ndbi_result=ndbi_result,
-            soil_ph=req.soil_ph or 6.5,
+            soil_ph=soil_ph,
             irrigation_score=req.irrigation_score or 0.80
         )
 
@@ -176,7 +188,8 @@ async def evaluate_land_parcel(req: EvaluateRequest):
             "slope_degrees": gee_data["slope_degrees"],
             "annual_rainfall_mm": gee_data["annual_rainfall_mm"],
             "lst_temp_celsius": gee_data["lst_temp_celsius"],
-            "soil_ph": req.soil_ph or 6.5,
+            "soil_ph": soil_ph,
+            "soil_ph_source": soil_ph_source,
             "land_use_code": gee_data["land_use_code"],
             "land_use_label": gee_data["land_use_label"],
             "is_built_up": ndbi_result["is_built_up"],

@@ -311,7 +311,7 @@ export default function AreaSelectionClient() {
             onClick={() => setIsMobileSidebarOpen(false)}
             className="lg:hidden absolute top-2 right-2 z-50 w-8 h-8 flex items-center justify-center bg-bg border border-line rounded-full text-ink-body hover:text-red-500 shadow-sm"
           >
-            ?
+            ✕
           </button>
           {/* Tabs Row */}
           <div className="h-12 border-b border-line flex items-center shrink-0">
@@ -587,10 +587,18 @@ export default function AreaSelectionClient() {
             flyToCoords={flyToCoords}
           />}
 
+          <button
+            type="button"
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="lg:hidden absolute top-4 right-4 z-[1000] rounded-xl border border-line bg-panel/95 px-3.5 py-2.5 text-xs font-bold text-primary shadow-lg backdrop-blur-sm"
+          >
+            ☰ เครื่องมือและพิกัด
+          </button>
+
           {/* ═══════════════════════════════════════════
               DRAWING TOOLBAR (Top-Left on Map)
              ═══════════════════════════════════════════ */}
-          <div className="absolute top-5 left-5 z-[1000] max-w-[calc(100%-40px)] bg-panel/95 backdrop-blur-sm border border-line rounded-lg p-1.5 flex flex-wrap items-center gap-1.5 shadow-md">
+          <div className="absolute top-4 left-4 right-4 sm:top-5 sm:left-5 sm:right-auto z-[1000] max-w-[calc(100%-32px)] sm:max-w-[calc(100%-40px)] bg-panel/95 backdrop-blur-sm border border-line rounded-xl p-1.5 flex flex-wrap items-center gap-1.5 shadow-md">
             <button
               onClick={() =>
                 setActiveTool(activeTool === "polygon" ? "none" : "polygon")
@@ -603,7 +611,7 @@ export default function AreaSelectionClient() {
               }`}
             >
               <span>⬡</span>
-              <span>วาดหลายเหลี่ยม</span>
+              <span className="hidden sm:inline">วาดหลายเหลี่ยม</span><span className="sm:hidden">วาดจุด</span>
             </button>
 
             <button
@@ -618,7 +626,7 @@ export default function AreaSelectionClient() {
               }`}
             >
               <span>▢</span>
-              <span>วาดสี่เหลี่ยม</span>
+              <span className="hidden sm:inline">วาดสี่เหลี่ยม</span><span className="sm:hidden">วาดกรอบ</span>
             </button>
 
             <span className="w-px h-4 bg-line mx-0.5" />
@@ -681,7 +689,7 @@ export default function AreaSelectionClient() {
               <span className="text-[11px] text-ink-soft">
                 {areaRai > MAX_ALLOWED_RAI
                   ? "กรุณาล้างเพื่อวาดใหม่ หรือแบ่งเป็นแปลงย่อย"
-                  : "ดาวเทียม Sentinel-1/2 & แบบจำลองดิน LDD"}
+                  : "ข้อมูลดาวเทียมและเกณฑ์ FAO"}
               </span>
             </div>
 

@@ -27,6 +27,26 @@ body {
   background: var(--color-bg);
   color: var(--color-ink-body);
   font-family: var(--font-body);
+  min-width: 320px;
+}
+
+button,
+a,
+input {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 3px solid rgba(180, 132, 31, 0.55);
+  outline-offset: 3px;
+}
+
+@media (max-width: 639px) {
+  html {
+    font-size: 15px;
+  }
 }
 
 /* ─── Utilities ──────────────────────────────────── */
@@ -76,6 +96,12 @@ body {
   background-color: #EDE8D8 !important;
 }
 
+@media (max-width: 639px) {
+  .leaflet-control-zoom {
+    margin-top: 76px !important;
+  }
+}
+
 
 @keyframes pulse-ring {
   0% {
@@ -95,5 +121,4 @@ body {
 .pulse-dot-anim {
   animation: pulse-ring 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
 }
-
 

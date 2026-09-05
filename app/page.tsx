@@ -15,16 +15,16 @@ const steps = [
   {
     number: "02",
     icon: "🛰️",
-    title: "AI วิเคราะห์ดาวเทียม 5 มิติ",
+    title: "วิเคราะห์ปัจจัยพื้นที่จากข้อมูลดาวเทียม",
     description:
-      "ดึงข้อมูลสุขภาพพืช (NDVI), ความชื้นผิวดินเรดาร์ (SAR), ความลาดชัน (DEM), ฝนสะสม (CHIRPS) และกลุ่มชุดดิน LDD",
+      "ประมวลผลความลาดชัน ปริมาณน้ำฝน อุณหภูมิ ระดับความสูง และสภาพการปกคลุมดินของพื้นที่",
   },
   {
     number: "03",
     icon: "📊",
-    title: "จำแนกเกรดมาตรฐาน FAO & LDD",
+    title: "ประเมินตามเกณฑ์ FAO",
     description:
-      "ประเมินด้วยเขตความเหมาะสมของที่ดิน LDD Zoning สำหรับ 13 พืช",
+      "เปรียบเทียบข้อมูลพื้นที่กับเกณฑ์ความเหมาะสมของพืชเศรษฐกิจ 13 ชนิด",
   },
   {
     number: "04",
@@ -119,7 +119,7 @@ export default function HomePage() {
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600" />
           </span>
           <span className="text-xs font-bold text-emerald-900 tracking-wide">
-            อัปเกรดใหม่: LDD Zoning ทางการสำหรับ 13 พืชเศรษฐกิจ
+            วิเคราะห์พืชเศรษฐกิจ 13 ชนิดตามเกณฑ์ FAO
           </span>
         </div>
 
@@ -128,11 +128,11 @@ export default function HomePage() {
           <h1 className="font-heading font-black text-3xl sm:text-5xl lg:text-6xl leading-[118%] text-[#142B18] tracking-tight">
             วิเคราะห์ศักยภาพผืนดินของคุณ{" "}
             <span className="bg-gradient-to-r from-emerald-700 via-teal-700 to-emerald-800 bg-clip-text text-transparent block mt-2">
-              ด้วยข้อมูลดาวเทียมและเกณฑ์ FAO & LDD
+              ด้วยข้อมูลดาวเทียมและเกณฑ์ FAO
             </span>
           </h1>
           <p className="text-base sm:text-lg leading-relaxed text-[#4A5D4E] max-w-2xl font-normal">
-            รู้ทันทีว่าแปลงที่ดินของคุณเหมาะกับการปลูกพืชชนิดไหน ประเมินความชื้นผิวดินเรดาร์ ความลาดชัน ปริมาณน้ำฝน และกลุ่มชุดดิน 62 กลุ่มจากกรมพัฒนาที่ดิน เพื่อผลตอบแทนที่มั่นคงที่สุด
+            ตรวจสอบความเหมาะสมเบื้องต้นของแปลงจากความลาดชัน ปริมาณน้ำฝน pH อุณหภูมิ และระดับความสูง พร้อมคัดกรองแหล่งน้ำและสิ่งปลูกสร้าง
           </p>
         </div>
 
@@ -162,13 +162,13 @@ export default function HomePage() {
           </div>
           <div className="bg-white/70 backdrop-blur-sm border border-[#E8E3D8] rounded-2xl p-4 flex flex-col items-center text-center shadow-xs">
             <span className="text-2xl mb-1">🛰️</span>
-            <span className="font-heading font-black text-lg text-emerald-900">5 มิติ</span>
-            <span className="text-xs text-[#5D7060]">ดาวเทียม GEE สด</span>
+            <span className="font-heading font-black text-lg text-emerald-900">5 ปัจจัย</span>
+            <span className="text-xs text-[#5D7060]">ข้อมูลพื้นที่สำคัญ</span>
           </div>
           <div className="bg-white/70 backdrop-blur-sm border border-[#E8E3D8] rounded-2xl p-4 flex flex-col items-center text-center shadow-xs">
-            <span className="text-2xl mb-1">📋</span>
-            <span className="font-heading font-black text-lg text-emerald-900">62 กลุ่ม</span>
-            <span className="text-xs text-[#5D7060]">ชุดดินกรมพัฒนาที่ดิน</span>
+            <span className="text-2xl mb-1">🗺️</span>
+            <span className="font-heading font-black text-lg text-emerald-900">2 มาสก์</span>
+            <span className="text-xs text-[#5D7060]">น้ำและสิ่งปลูกสร้าง</span>
           </div>
           <div className="bg-white/70 backdrop-blur-sm border border-[#E8E3D8] rounded-2xl p-4 flex flex-col items-center text-center shadow-xs">
             <span className="text-2xl mb-1">🎯</span>
@@ -180,7 +180,7 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════════════════════════════════
-          FAO & LDD EDUCATIONAL SECTION (Knowledge Hub)
+          FAO EDUCATIONAL SECTION (Knowledge Hub)
          ═══════════════════════════════════════════ */}
       <section
         id="fao-knowledge"
@@ -196,11 +196,10 @@ export default function HomePage() {
             ทำความเข้าใจ FAO คืออะไร และเกณฑ์ S1, S2, S3, N บ่งบอกอะไร?
           </h2>
           <p className="text-sm sm:text-base text-[#4A5D4E] leading-relaxed">
-            ระบบ Aura Farm ยึดหลักการประเมินที่ดินที่เป็นวิทยาศาสตร์ตามคู่มือทางการขององค์การอาหารและการเกษตรแห่งสหประชาชาติ (FAO) ผสานกับฐานข้อมูลกรมพัฒนาที่ดิน (LDD) เพื่อให้เกษตรกรเข้าใจสภาพแปลงของตนเองอย่างแท้จริง
+            ระบบ Aura Farm เปรียบเทียบข้อมูลพื้นที่กับเกณฑ์ความเหมาะสมของ FAO สำหรับพืชเศรษฐกิจ 13 ชนิด เพื่อช่วยคัดกรองทางเลือกในการใช้พื้นที่
           </p>
         </div>
 
-        {/* 2 Core Columns: What is FAO & LDD */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto w-full">
           
           {/* Card 1: What is FAO? */}
@@ -219,19 +218,19 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* Card 2: LDD Connection */}
+          {/* Card 2: Data used */}
           <div className="bg-gradient-to-br from-[#FDFBF7] to-[#F5EFE1] border border-amber-200/80 rounded-3xl p-8 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow">
             <div className="w-12 h-12 rounded-2xl bg-amber-700 text-white flex items-center justify-center text-2xl shadow-sm">
               🇹🇭
             </div>
             <h3 className="font-heading font-bold text-xl text-amber-950">
-              เชื่อมโยงกับ กรมพัฒนาที่ดิน (LDD) อย่างไร?
+              ระบบนำข้อมูลอะไรมาใช้?
             </h3>
             <p className="text-sm text-[#4E4432] leading-relaxed">
-              <strong>กรมพัฒนาที่ดิน (พด. - LDD)</strong> กระทรวงเกษตรและสหกรณ์ ได้นำกรอบ FAO มาประยุกต์ใช้กับดินในประเทศไทย และจัดทำเป็น <strong>"คู่มือเกณฑ์การประเมินความเหมาะสมของดินสำหรับพืชเศรษฐกิจ"</strong> และระบบ Agri-Map
+              ระบบใช้ขอบเขตแปลงที่ผู้ใช้กำหนดร่วมกับข้อมูลความลาดชัน ปริมาณน้ำฝน อุณหภูมิ ระดับความสูง และค่า pH ของดิน เพื่อเปรียบเทียบกับเกณฑ์รายพืช
             </p>
             <p className="text-xs text-[#635843] leading-relaxed">
-              LDD ได้กำหนดเกณฑ์ตารางตัวเลขเฉพาะสำหรับพืชแต่ละชนิด (เช่น ความลาดชัน, ค่า pH ดิน, ความชื้น, ปริมาณฝน) โดยใช้ <strong>วิธีปัจจัยจำกัดสูงสุด (Maximum Limitation Method)</strong> ซึ่งระบบ Aura Farm นำมาใช้คำนวณอย่างตรงไปตรงมา
+              นอกจากนี้ ระบบคัดกรองพื้นที่แหล่งน้ำและสิ่งปลูกสร้างก่อนแสดงคำแนะนำพืช เพื่อให้ผลลัพธ์สอดคล้องกับการใช้พื้นที่ในปัจจุบันมากขึ้น
             </p>
           </div>
 
@@ -307,7 +306,7 @@ export default function HomePage() {
             สำรวจและประเมินแปลงที่ดินได้ง่ายๆ ในไม่กี่วินาที
           </h2>
           <p className="text-sm text-[#4A5D4E]">
-            เพียงกำหนดแนวเขตแปลง ระบบ AI จะประมวลผลดาวเทียมและเทียบตารางเกณฑ์ LDD ให้ทันที
+            เพียงกำหนดแนวเขตแปลง ระบบจะประมวลผลข้อมูลพื้นที่และเทียบเกณฑ์ FAO ให้ทันที
           </p>
         </div>
 

@@ -16,7 +16,7 @@ CROPS: Dict[str, str] = {
     "Coffee_robusta": "robusta_coffee", "Durian": "durian", "Longan": "longan",
     "Maize": "maize", "Mangosteen": "mangosteen", "Palm": "oil_palm",
     "Pararubber": "rubber_tree", "Pineapple": "pineapple", "Rice": "rice",
-    "Sugarcane": "sugarcane",
+    "Rambutan": "rambutan", "Sugarcane": "sugarcane",
 }
 GRADES = {"S1", "S2", "S3", "N"}
 

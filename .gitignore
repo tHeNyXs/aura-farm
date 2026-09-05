@@ -56,6 +56,7 @@ credentials.json
 
 # cache
 .aura_cache/
+/temp/
 
 # Source and generated GIS data are provisioned outside Git.
 /data/

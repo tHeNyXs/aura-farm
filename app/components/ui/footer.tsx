@@ -32,7 +32,7 @@ export default function Footer() {
           </Link>
 
           <p className="text-xs leading-relaxed text-line/80">
-            แพลตฟอร์มวิเคราะห์ศักยภาพผืนดินและแนะนำพืชเศรษฐกิจไทย ด้วยข้อมูลดาวเทียมระดับลึก ผสานเกณฑ์มาตรฐานกรมพัฒนาที่ดิน (LDD) และองค์การอาหารและการเกษตรแห่งสหประชาชาติ (FAO)
+            แพลตฟอร์มวิเคราะห์ความเหมาะสมของพื้นที่และแนะนำพืชเศรษฐกิจไทย ด้วยข้อมูลภูมิสารสนเทศและเกณฑ์ FAO สำหรับพืช 13 ชนิด
           </p>
         </div>
 
@@ -49,7 +49,7 @@ export default function Footer() {
       {/* ── Bottom Row ───────────────────────── */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-[11px] text-line/60 font-mono">
         <span>© 2026 Aura Farm. พัฒนาขึ้นเพื่อเกษตรกรรมแม่นยำสูงในประเทศไทย</span>
-        <span>ข้อมูลอ้างอิง: กรมพัฒนาที่ดิน (LDD 62 กลุ่มชุดดิน) • FAO EcoCrop • ESA Copernicus</span>
+        <span>ข้อมูลอ้างอิง: เกณฑ์ FAO • Google Earth Engine • SoilGrids • ESA WorldCover</span>
       </div>
     </footer>
   );
