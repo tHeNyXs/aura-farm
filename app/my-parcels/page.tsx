@@ -53,7 +53,7 @@ export default function MyParcelsPage() {
 
   return (
     <div
-      className="flex flex-col min-h-screen transition-colors duration-350"
+      className="aura-parcels-page flex flex-col min-h-screen transition-colors duration-350"
       style={{ background: "var(--bg-base)", color: "var(--text-primary)" }}
     >
       <Navbar />

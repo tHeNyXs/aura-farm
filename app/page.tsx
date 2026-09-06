@@ -296,7 +296,7 @@ export default function HomePage() {
 
   return (
     <div
-      className="flex flex-col min-h-screen transition-colors duration-350"
+      className="aura-home-page flex flex-col min-h-screen transition-colors duration-350"
       style={{ background: "var(--bg-base)", color: "var(--text-primary)" }}
     >
       <Navbar />
@@ -306,7 +306,7 @@ export default function HomePage() {
          ═══════════════════════════════════════════════════════════════ */}
       <section
         ref={heroReveal.ref}
-        className="relative overflow-hidden px-6 md:px-12 lg:px-20 pt-16 pb-24 lg:pt-24 lg:pb-32 bg-grid-tech"
+        className="aura-home-hero relative overflow-hidden px-6 md:px-12 lg:px-20 pt-16 pb-24 lg:pt-24 lg:pb-32 bg-grid-tech"
         style={{ background: "var(--grad-hero)" }}
       >
         {/* Ambient Glow Orbs */}

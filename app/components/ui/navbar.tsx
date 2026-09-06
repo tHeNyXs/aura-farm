@@ -86,7 +86,7 @@ export default function Navbar() {
         role="banner"
       >
         <nav
-          className={`rr-navbar ${isScrolled ? "glass-specular" : ""}`}
+          className={`rr-navbar aura-nav-enter ${isScrolled ? "glass-specular" : ""}`}
           role="navigation"
           aria-label="Main navigation"
         >

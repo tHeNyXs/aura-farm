@@ -256,7 +256,7 @@ export default function AreaSelectionClient() {
       {/* ═══════════════════════════════════════════
           HEADER
          ═══════════════════════════════════════════ */}
-      <header className="aura-workspace-header h-16 border-b px-4 sm:px-6 lg:px-8 flex items-center justify-between z-30 shrink-0">
+      <header className="aura-workspace-header aura-analyze-header h-16 border-b px-4 sm:px-6 lg:px-8 flex items-center justify-between z-30 shrink-0">
         {/* Logo Group */}
         <Link href="/" className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center border border-[#66BB6A]/40 bg-[#F1F8E9] shadow-sm">
@@ -305,7 +305,7 @@ export default function AreaSelectionClient() {
          ═══════════════════════════════════════════ */}
       <div className="flex flex-col lg:flex-row flex-1 w-full relative overflow-hidden">
         {/* ── Left Sidebar (380px) ───────────────── */}
-        <aside className={`aura-workspace-sidebar absolute lg:relative inset-0 lg:inset-auto lg:w-[40%] lg:max-w-[480px] lg:min-w-[390px] lg:border-r flex-col shrink-0 z-[2000] lg:z-20 overflow-y-auto ${isMobileSidebarOpen ? "flex" : "hidden lg:flex"}`}>
+        <aside className={`aura-workspace-sidebar aura-analyze-panel absolute lg:relative inset-0 lg:inset-auto lg:w-[40%] lg:max-w-[480px] lg:min-w-[390px] lg:border-r flex-col shrink-0 z-[2000] lg:z-20 overflow-y-auto ${isMobileSidebarOpen ? "flex" : "hidden lg:flex"}`}>
           {/* Mobile Close Button */}
           <button 
             onClick={() => setIsMobileSidebarOpen(false)}
@@ -591,7 +591,7 @@ export default function AreaSelectionClient() {
         </aside>
 
         {/* ── Main Map Area ───────────────────────── */}
-        <main className="flex-1 relative h-[550px] lg:h-[calc(100vh-64px)] w-full overflow-hidden">
+        <main className="aura-analyze-map flex-1 relative h-[550px] lg:h-[calc(100vh-64px)] w-full overflow-hidden">
           {hasGoogleMapsKey ? <GoogleSatelliteMap
             tool={activeTool}
             onToolChange={setActiveTool}
@@ -618,7 +618,7 @@ export default function AreaSelectionClient() {
               DRAWING TOOLBAR (Top-Left on Map)
              ═══════════════════════════════════════════ */}
           <div
-            className="aura-map-status absolute top-4 left-4 right-4 sm:top-5 sm:left-5 sm:right-auto z-[1000] max-w-[calc(100%-32px)] sm:max-w-[calc(100%-40px)] rounded-xl p-1.5 flex flex-wrap items-center gap-1.5"
+            className="aura-map-status aura-analyze-toolbar absolute top-4 left-4 right-4 sm:top-5 sm:left-5 sm:right-auto z-[1000] max-w-[calc(100%-32px)] sm:max-w-[calc(100%-40px)] rounded-xl p-1.5 flex flex-wrap items-center gap-1.5"
           >
             <button
               onClick={() =>
@@ -706,7 +706,7 @@ export default function AreaSelectionClient() {
               ACTION FLOATING BAR (Bottom Right on Map)
              ═══════════════════════════════════════════ */}
           <div
-            className="absolute bottom-5 left-4 right-4 md:left-auto md:right-5 z-[1000] rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-2xl"
+            className="aura-analyze-actionbar absolute bottom-5 left-4 right-4 md:left-auto md:right-5 z-[1000] rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-2xl"
             style={{
               background: "#081812",
               border: "1px solid rgba(44, 201, 160, 0.4)",

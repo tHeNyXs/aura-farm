@@ -168,6 +168,33 @@ input:focus-visible {
   animation: aura-panel-enter 440ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Explicit classes for the map workspace: map libraries create their own
+   DOM, so the scene animation must be applied to the stable outer regions. */
+.aura-analyze-header { animation: aura-header-enter 360ms ease-out both; }
+.aura-analyze-panel { animation: aura-panel-enter 500ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.aura-analyze-map { animation: aura-map-enter 560ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.aura-analyze-toolbar { animation: aura-toolbar-enter 480ms 180ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.aura-analyze-actionbar { animation: aura-action-enter 500ms 280ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.aura-nav-enter { animation: aura-header-enter 360ms ease-out both; }
+.aura-home-hero { animation: aura-home-hero-enter 560ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.aura-footer { animation: aura-rise 440ms ease-out both; }
+
+.aura-parcels-page main > * {
+  animation: aura-rise 440ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.aura-parcels-page main > *:nth-child(2) { animation-delay: 70ms; }
+.aura-parcels-page main > *:nth-child(3) { animation-delay: 140ms; }
+
+/* Press feedback is useful on touch screens too, unlike hover-only effects. */
+.btn-primary:active,
+.btn-secondary:active,
+.aura-crop-page button:active,
+.aura-crop-results button:active,
+.aura-parcels-page button:active {
+  transform: scale(0.98);
+}
+
 .aura-workspace main > div:not(.leaflet-container) {
   animation: aura-map-control-enter 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -402,6 +429,31 @@ input:focus-visible {
   to { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes aura-header-enter {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes aura-map-enter {
+  from { opacity: 0; transform: scale(0.985); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes aura-home-hero-enter {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes aura-toolbar-enter {
+  from { opacity: 0; transform: translateY(-12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes aura-action-enter {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes aura-map-control-enter {
   from { opacity: 0; transform: translateY(-10px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -417,7 +469,8 @@ input:focus-visible {
 }
 
 @media (max-width: 1023px) {
-  .aura-workspace-sidebar { animation-name: aura-sheet-enter; }
+  .aura-workspace-sidebar,
+  .aura-analyze-panel { animation-name: aura-sheet-enter; }
 }
 
 @keyframes aura-sheet-enter {

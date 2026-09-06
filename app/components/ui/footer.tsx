@@ -3,7 +3,7 @@ import Link from "next/link";
 export default function Footer() {
   return (
     <footer
-      className="px-6 lg:px-20 py-12 flex flex-col gap-8 border-t transition-colors duration-300"
+      className="aura-footer px-6 lg:px-20 py-12 flex flex-col gap-8 border-t transition-colors duration-300"
       style={{
         background: "var(--bg-surface)",
         borderColor: "var(--border-soft)",
