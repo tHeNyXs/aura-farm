@@ -252,14 +252,14 @@ export default function AreaSelectionClient() {
   };
 
   return (
-    <div className="flex flex-col w-full h-[100dvh] overflow-hidden bg-bg">
+    <div className="aura-workspace flex flex-col w-full h-[100dvh] overflow-hidden">
       {/* ═══════════════════════════════════════════
           HEADER
          ═══════════════════════════════════════════ */}
-      <header className="h-16 bg-panel border-b border-line px-4 sm:px-6 lg:px-8 flex items-center justify-between z-30 shrink-0">
+      <header className="aura-workspace-header h-16 border-b px-4 sm:px-6 lg:px-8 flex items-center justify-between z-30 shrink-0">
         {/* Logo Group */}
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center border border-[#66BB6A]/40 bg-[#F1F8E9] shadow-sm">
             <svg
               width="18"
               height="18"
@@ -272,22 +272,22 @@ export default function AreaSelectionClient() {
                 cy="12"
                 rx="11"
                 ry="4.5"
-                stroke="#37523A"
+                stroke="#2E7D32"
                 strokeWidth="1.2"
               />
-              <circle cx="12" cy="12" r="4" fill="#37523A" />
-              <circle cx="18" cy="8" r="3" fill="#B4841F" />
+              <circle cx="12" cy="12" r="4" fill="#2E7D32" />
+              <circle cx="18" cy="8" r="3" fill="#D7A86E" />
             </svg>
           </div>
-          <span className="font-heading font-bold text-xl text-primary-dark">
+          <span className="font-heading font-extrabold text-xl text-[#1F5A2B] tracking-tight">
             Aura Farm
           </span>
         </Link>
 
         {/* Mode Indicator */}
-        <div className="hidden md:flex items-center gap-2 text-xs font-semibold text-primary">
-          <span className="w-2 h-2 rounded-full bg-accent pulse-dot-anim" />
-          <span>ระบบดาวเทียม Sentinel-2 ความละเอียดสูง (10m)</span>
+        <div className="hidden md:flex items-center gap-2 text-xs font-semibold text-[#397E3D] rounded-full bg-[#F1F8E9] px-3 py-1.5">
+          <span className="w-2 h-2 rounded-full bg-[#66BB6A] animate-pulse" />
+          <span>พร้อมวิเคราะห์ด้วยข้อมูลภูมิสารสนเทศ</span>
         </div>
 
         {/* Action Button: กลับหน้าหลัก */}
@@ -305,7 +305,7 @@ export default function AreaSelectionClient() {
          ═══════════════════════════════════════════ */}
       <div className="flex flex-col lg:flex-row flex-1 w-full relative overflow-hidden">
         {/* ── Left Sidebar (380px) ───────────────── */}
-        <aside className={`absolute lg:relative inset-0 lg:inset-auto lg:w-[380px] bg-panel lg:border-r border-line flex-col shrink-0 z-[2000] lg:z-20 overflow-y-auto ${isMobileSidebarOpen ? "flex" : "hidden lg:flex"}`}>
+        <aside className={`aura-workspace-sidebar absolute lg:relative inset-0 lg:inset-auto lg:w-[40%] lg:max-w-[480px] lg:min-w-[390px] lg:border-r flex-col shrink-0 z-[2000] lg:z-20 overflow-y-auto ${isMobileSidebarOpen ? "flex" : "hidden lg:flex"}`}>
           {/* Mobile Close Button */}
           <button 
             onClick={() => setIsMobileSidebarOpen(false)}
@@ -344,12 +344,24 @@ export default function AreaSelectionClient() {
           {activeTab === "draw" && (
             <div className="p-5 flex flex-col gap-5 flex-1">
               <div className="flex flex-col gap-1.5">
-                <h3 className="font-heading font-bold text-base text-primary-dark">
-                  เลือกเครื่องมือวาดแปลง
+                <p className="text-[10px] font-bold tracking-[0.12em] uppercase text-[#397E3D]">
+                  Step 01 · Select boundary
+                </p>
+                <h3 className="font-heading font-extrabold text-lg text-[#1F5A2B]">
+                  กำหนดขอบเขตแปลงของคุณ
                 </h3>
                 <p className="text-xs text-ink-body leading-relaxed">
                   คลิกบนแผนที่อย่างน้อย 3 จุดเพื่อปิดล้อมแนวเขตแปลง หรือวาดสี่เหลี่ยม จากนั้นสามารถ<strong>คลิกลากที่จุดมุมสีทอง</strong>เพื่อปรับขนาดได้
                 </p>
+              </div>
+
+              <div className="aura-factor-strip" aria-label="ข้อมูลที่ระบบนำมาวิเคราะห์">
+                <span>◒ ความลาดชัน</span>
+                <span>◈ pH ดิน</span>
+                <span>☔ ปริมาณฝน</span>
+                <span>⌁ ระดับความสูง</span>
+                <span>◉ NDVI / NDBI</span>
+                <span>◌ น้ำและอาคาร</span>
               </div>
 
               {/* Drawing options buttons */}
@@ -597,12 +609,7 @@ export default function AreaSelectionClient() {
           <button
             type="button"
             onClick={() => setIsMobileSidebarOpen(true)}
-            className="lg:hidden absolute top-4 right-4 z-[1000] rounded-xl px-3.5 py-2.5 text-xs font-bold text-white shadow-2xl"
-            style={{
-              background: "#081812",
-              border: "1px solid rgba(44, 201, 160, 0.4)",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
-            }}
+            className="lg:hidden absolute top-4 right-4 z-[1000] rounded-xl px-3.5 py-2.5 text-xs font-bold text-white shadow-xl bg-[#2E7D32] border border-[#66BB6A]"
           >
             ☰ เครื่องมือและพิกัด
           </button>
@@ -611,12 +618,7 @@ export default function AreaSelectionClient() {
               DRAWING TOOLBAR (Top-Left on Map)
              ═══════════════════════════════════════════ */}
           <div
-            className="absolute top-4 left-4 right-4 sm:top-5 sm:left-5 sm:right-auto z-[1000] max-w-[calc(100%-32px)] sm:max-w-[calc(100%-40px)] rounded-xl p-1.5 flex flex-wrap items-center gap-1.5 shadow-2xl"
-            style={{
-              background: "#081812",
-              border: "1px solid rgba(44, 201, 160, 0.4)",
-              boxShadow: "0 10px 30px rgba(0,0,0,0.6)",
-            }}
+            className="aura-map-status absolute top-4 left-4 right-4 sm:top-5 sm:left-5 sm:right-auto z-[1000] max-w-[calc(100%-32px)] sm:max-w-[calc(100%-40px)] rounded-xl p-1.5 flex flex-wrap items-center gap-1.5"
           >
             <button
               onClick={() =>
