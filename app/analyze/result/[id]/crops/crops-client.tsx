@@ -86,6 +86,13 @@ export default function CropsClient({ analysis, crops }: CropsClientProps) {
   };
 
   const gradedCrops = crops.filter((crop) => crop.ldd_data_available || crop.is_masked_out);
+  const cropGroupCount = new Set(
+    crops.map((crop) =>
+      crop.id === "arabica_coffee" || crop.id === "robusta_coffee"
+        ? "coffee"
+        : crop.id
+    )
+  ).size;
   const s1Count = gradedCrops.filter((c) => c.fao_class === "S1").length;
   const s2Count = gradedCrops.filter((c) => c.fao_class === "S2").length;
   const s3Count = gradedCrops.filter((c) => c.fao_class === "S3").length;
@@ -106,7 +113,7 @@ export default function CropsClient({ analysis, crops }: CropsClientProps) {
             <span className="text-xs text-[#5D7060]">• เปรียบเทียบปัจจัยพื้นที่กับช่วงเกณฑ์พืช</span>
           </div>
           <h2 className="font-heading font-black text-xl md:text-2xl text-[#142B18]">
-            พืชเศรษฐกิจสำหรับแปลงนี้ ({crops.length} ชนิด)
+            พืชเศรษฐกิจสำหรับแปลงนี้ ({cropGroupCount} กลุ่มพืช)
           </h2>
           <p className="text-xs text-[#5D7060]">
             เกรด S1–N คำนวณจากเกณฑ์ FAO ของพืชแต่ละชนิด; ระบบตรวจน้ำและสิ่งปลูกสร้างจากข้อมูลภูมิสารสนเทศในสภาพปัจจุบัน
@@ -123,7 +130,7 @@ export default function CropsClient({ analysis, crops }: CropsClientProps) {
                 : "bg-white text-[#142B18] border-[#D5CEBF] hover:border-emerald-600"
             }`}
           >
-            ทั้งหมด ({crops.length})
+            ทั้งหมด ({cropGroupCount} กลุ่มพืช)
           </button>
           <button
             onClick={() => setSelectedFaoClass("S1")}

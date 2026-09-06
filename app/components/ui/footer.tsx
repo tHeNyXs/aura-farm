@@ -64,14 +64,14 @@ export default function Footer() {
             หน้าแรก
           </Link>
           <a
-            href="#how-it-works"
+            href="/#how-it-works"
             className="transition-colors hover:text-[var(--color-teal)]"
             style={{ color: "var(--text-secondary)" }}
           >
             ขั้นตอนการทำงาน
           </a>
           <a
-            href="#fao-knowledge"
+            href="/#fao-knowledge"
             className="transition-colors hover:text-[var(--color-teal)]"
             style={{ color: "var(--text-secondary)" }}
           >

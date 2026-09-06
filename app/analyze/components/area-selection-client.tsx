@@ -795,8 +795,8 @@ export default function AreaSelectionClient() {
               </h3>
             </div>
 
-            <div className="w-full bg-bg border border-line rounded-lg p-4 text-center">
-              <p className="text-xs font-semibold text-[#EAF5EA] min-h-[40px] flex items-center justify-center transition-all">
+            <div className="w-full rounded-xl p-4 text-center bg-[#142317] border border-[#81C784]/35 shadow-inner">
+              <p className="text-xs font-semibold text-[#F3FAF2] min-h-[40px] flex items-center justify-center transition-all">
                 {AI_ANALYZING_STEPS[analyzingStepIndex]}
               </p>
             </div>

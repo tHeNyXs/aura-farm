@@ -52,6 +52,15 @@ export default async function AnalysisResultPage({ params, searchParams }: PageP
   const { result: data, rankedCrops } = analysis;
 
   const gradedCrops = rankedCrops;
+  // Coffee is one economic-crop group in the project scope; the two varieties
+  // remain separate internally because their FAO requirements differ.
+  const cropGroupCount = new Set(
+    rankedCrops.map((crop) =>
+      crop.id === "arabica_coffee" || crop.id === "robusta_coffee"
+        ? "coffee"
+        : crop.id
+    )
+  ).size;
   const s1Crops = gradedCrops.filter((c) => c.fao_class === "S1");
   const s2Crops = gradedCrops.filter((c) => c.fao_class === "S2");
   const s3Crops = gradedCrops.filter((c) => c.fao_class === "S3");
@@ -101,7 +110,7 @@ export default async function AnalysisResultPage({ params, searchParams }: PageP
         ringCountColor: "text-red-100",
         ringUnit: "ชนิด",
         ringUnitColor: "text-red-200",
-        ringSubtitle: isBuiltUp ? "ตรวจพบคอนกรีต/หลังคา" : `จากทั้งหมด ${rankedCrops.length} ชนิด`,
+        ringSubtitle: isBuiltUp ? "ตรวจพบคอนกรีต/หลังคา" : `จากทั้งหมด ${cropGroupCount} กลุ่มพืช`,
         rightCardBg: "bg-red-950/50 border-red-400/30",
         rightBadge: "text-red-300",
         rightPill: "bg-red-500/25 border-red-400/40 text-red-100",
@@ -132,7 +141,7 @@ export default async function AnalysisResultPage({ params, searchParams }: PageP
         ringCountColor: "text-orange-100",
         ringUnit: "ชนิด",
         ringUnitColor: "text-orange-200",
-        ringSubtitle: `จากทั้งหมด ${rankedCrops.length} ชนิด`,
+        ringSubtitle: `จากทั้งหมด ${cropGroupCount} กลุ่มพืช`,
         rightCardBg: "bg-orange-950/50 border-orange-400/30",
         rightBadge: "text-orange-300",
         rightPill: "bg-orange-500/25 border-orange-400/40 text-orange-100",
@@ -163,7 +172,7 @@ export default async function AnalysisResultPage({ params, searchParams }: PageP
         ringCountColor: "text-amber-100",
         ringUnit: "ชนิด",
         ringUnitColor: "text-amber-200",
-        ringSubtitle: `จากทั้งหมด ${rankedCrops.length} ชนิด`,
+        ringSubtitle: `จากทั้งหมด ${cropGroupCount} กลุ่มพืช`,
         rightCardBg: "bg-amber-950/50 border-amber-400/30",
         rightBadge: "text-amber-300",
         rightPill: "bg-amber-500/25 border-amber-400/40 text-amber-100",
@@ -194,7 +203,7 @@ export default async function AnalysisResultPage({ params, searchParams }: PageP
         ringCountColor: "text-white",
         ringUnit: "ชนิด",
         ringUnitColor: "text-emerald-200",
-        ringSubtitle: `จากทั้งหมด ${rankedCrops.length} ชนิด`,
+        ringSubtitle: `จากทั้งหมด ${cropGroupCount} กลุ่มพืช`,
         rightCardBg: "bg-emerald-950/40 border-emerald-400/20",
         rightBadge: "text-amber-300",
         rightPill: "bg-emerald-500/20 border-emerald-400/30 text-emerald-200",
@@ -247,7 +256,7 @@ export default async function AnalysisResultPage({ params, searchParams }: PageP
               href={`/analyze/result/${data.id}/crops${sp.poly ? `?poly=${sp.poly}` : ""}`}
               className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] transition-all flex items-center gap-2 cursor-pointer"
             >
-              <span>ดูพืชที่แนะนำ ({rankedCrops.length} ชนิด)</span>
+              <span>ดูพืชที่แนะนำ ({cropGroupCount} กลุ่มพืช)</span>
               <span>→</span>
             </Link>
           </div>
@@ -271,7 +280,7 @@ export default async function AnalysisResultPage({ params, searchParams }: PageP
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/80">
                   <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
                 </svg>
-                <span>จำแนกพืชเศรษฐกิจหลัก {rankedCrops.length} ชนิด</span>
+                <span>จำแนกพืชเศรษฐกิจหลัก {cropGroupCount} กลุ่มพืช</span>
               </div>
 
               {/* Glowing Pulse Ring Container */}
@@ -684,7 +693,7 @@ export default async function AnalysisResultPage({ params, searchParams }: PageP
               </span>
             </div>
             <h3 className="font-heading font-black text-2xl md:text-3xl text-white tracking-tight">
-              ดูรายชื่อพืชเศรษฐกิจครบทั้ง {rankedCrops.length} ชนิด
+              ดูรายชื่อพืชเศรษฐกิจครบทั้ง {cropGroupCount} กลุ่มพืช
             </h3>
             <p className="text-xs md:text-sm text-emerald-100/90 max-w-xl font-light">
               ประเมินพืชตามเกณฑ์ FAO ในไฟล์ที่กำหนด พร้อมคงการตรวจจับอาคารและแหล่งน้ำจากดาวเทียม
@@ -695,7 +704,7 @@ export default async function AnalysisResultPage({ params, searchParams }: PageP
             href={`/analyze/result/${data.id}/crops${sp.poly ? `?poly=${sp.poly}` : ""}`}
             className="px-8 py-4 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-base rounded-2xl hover:scale-105 transition-all shrink-0 shadow-lg cursor-pointer flex items-center gap-2"
           >
-            <span>ดูพืชแนะนำทั้งหมด ({rankedCrops.length} ชนิด)</span>
+            <span>ดูพืชแนะนำทั้งหมด ({cropGroupCount} กลุ่มพืช)</span>
             <span>→</span>
           </Link>
         </div>

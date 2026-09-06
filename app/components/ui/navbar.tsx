@@ -133,21 +133,21 @@ export default function Navbar() {
           {/* ── Center Quick Navigation (Rolls-Royce Style Links) ── */}
           <div className="hidden lg:flex items-center gap-7 text-xs font-semibold">
             <a
-              href="#how-it-works"
+              href="/#how-it-works"
               className="transition-colors hover:text-[var(--color-teal)]"
               style={{ color: "var(--text-secondary)" }}
             >
               ขั้นตอนการทำงาน
             </a>
             <a
-              href="#fao-knowledge"
+              href="/#fao-knowledge"
               className="transition-colors hover:text-[var(--color-teal)]"
               style={{ color: "var(--text-secondary)" }}
             >
               เกณฑ์มาตรฐาน FAO
             </a>
             <a
-              href="#crops-database"
+              href="/#crops-database"
               className="transition-colors hover:text-[var(--color-teal)]"
               style={{ color: "var(--text-secondary)" }}
             >
