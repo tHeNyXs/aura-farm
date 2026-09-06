@@ -19,6 +19,7 @@
   --text-secondary:#405A46;
   --text-muted:    #66806D;
   --text-subtle:   #8BA898;
+  --text-main:     var(--text-primary);
 
   /* Brand colors */
   --color-teal:     #2E7D32;
@@ -145,6 +146,22 @@ input:focus-visible {
     var(--bg-base);
 }
 
+.aura-report-page,
+.aura-crop-page,
+.aura-crop-results {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(215, 168, 110, 0.12), transparent 28rem),
+    radial-gradient(circle at 0% 20%, rgba(102, 187, 106, 0.12), transparent 30rem),
+    var(--bg-base);
+}
+
+.aura-report-page main,
+.aura-crop-page main,
+.aura-crop-results main,
+.aura-workspace main {
+  animation: aura-page-enter 420ms ease-out both;
+}
+
 .aura-workspace-header {
   background: rgba(255, 255, 255, 0.88);
   border-color: rgba(46, 125, 50, 0.14);
@@ -184,6 +201,21 @@ input:focus-visible {
   white-space: nowrap;
 }
 
+/* Shared card treatment keeps the guide and recommendation pages feeling
+   consistent, while retaining the individual S1–S3/N status colours. */
+.aura-crop-page .bg-white,
+.aura-crop-results .bg-white {
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+@media (hover: hover) {
+  .aura-crop-page .bg-white:hover,
+  .aura-crop-results .bg-white:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(28, 57, 33, 0.09);
+  }
+}
+
 [data-theme="dark"] .aura-workspace-header,
 [data-theme="dark"] .aura-workspace-sidebar,
 [data-theme="dark"] .aura-map-status {
@@ -197,6 +229,95 @@ input:focus-visible {
 }
 
 [data-theme="dark"] .aura-factor-strip span { color: #DCEEDA; }
+
+[data-theme="dark"] .aura-report-page,
+[data-theme="dark"] .aura-crop-page,
+[data-theme="dark"] .aura-crop-results {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(215, 168, 110, 0.10), transparent 28rem),
+    radial-gradient(circle at 0% 20%, rgba(102, 187, 106, 0.10), transparent 30rem),
+    var(--bg-base);
+}
+
+/* The crop guide formerly used fixed light-mode colours. These overrides make
+   every card, table, filter and explanatory panel readable in dark mode. */
+[data-theme="dark"] .aura-crop-page .bg-white,
+[data-theme="dark"] .aura-crop-results .bg-white {
+  background-color: var(--bg-panel) !important;
+  border-color: var(--border-mid) !important;
+}
+
+[data-theme="dark"] .aura-crop-page [class*="bg-[#F7F4EC]"],
+[data-theme="dark"] .aura-crop-results [class*="bg-[#F7F4EC]"] {
+  background-color: #1A2B1D !important;
+  border-color: var(--border-soft) !important;
+}
+
+[data-theme="dark"] .aura-crop-page [class*="text-[#142B18]"],
+[data-theme="dark"] .aura-crop-results [class*="text-[#142B18]"] {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .aura-crop-page [class*="text-[#4A5D4E]"],
+[data-theme="dark"] .aura-crop-page [class*="text-[#5D7060]"],
+[data-theme="dark"] .aura-crop-results [class*="text-[#5D7060]"] {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .aura-crop-page [class*="text-slate-"],
+[data-theme="dark"] .aura-crop-results [class*="text-slate-"] {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .aura-crop-page tbody,
+[data-theme="dark"] .aura-crop-results [class*="bg-slate-50"] {
+  color: var(--text-secondary) !important;
+  background-color: rgba(255, 255, 255, 0.035) !important;
+}
+
+[data-theme="dark"] .aura-crop-page [class*="border-[#E5E0D5]"],
+[data-theme="dark"] .aura-crop-page [class*="border-[#D5CEBF]"],
+[data-theme="dark"] .aura-crop-results [class*="border-[#E5E0D5]"],
+[data-theme="dark"] .aura-crop-results [class*="border-[#D5CEBF]"] {
+  border-color: var(--border-soft) !important;
+}
+
+[data-theme="dark"] .aura-crop-page [class*="bg-emerald-50"],
+[data-theme="dark"] .aura-crop-results [class*="bg-emerald-50"] {
+  background-color: rgba(46, 125, 50, 0.18) !important;
+}
+
+[data-theme="dark"] .aura-crop-page [class*="bg-amber-50"],
+[data-theme="dark"] .aura-crop-results [class*="bg-amber-50"] {
+  background-color: rgba(215, 168, 110, 0.15) !important;
+}
+
+[data-theme="dark"] .aura-crop-page [class*="text-emerald-950"],
+[data-theme="dark"] .aura-crop-results [class*="text-emerald-950"],
+[data-theme="dark"] .aura-crop-page [class*="text-amber-950"],
+[data-theme="dark"] .aura-crop-results [class*="text-amber-950"] {
+  color: var(--text-primary) !important;
+}
+
+/* Light text supplied by result cards stays bright regardless of theme. */
+[data-theme="dark"] .aura-report-page [class*="text-[var(--text-main)]"],
+[data-theme="dark"] .aura-crop-results [class*="text-[var(--text-main)]"] {
+  color: var(--text-primary) !important;
+}
+
+@keyframes aura-page-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 
 @media (max-width: 1023px) {
   .aura-workspace-sidebar {

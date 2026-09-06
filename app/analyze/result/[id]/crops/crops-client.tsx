@@ -101,15 +101,15 @@ export default function CropsClient({ analysis, crops }: CropsClientProps) {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                 <path d="M12 22V12" /><path d="M5 12H2a10 10 0 0 0 20 0h-3" /><path d="M12 12C12 6 7 3 7 3s0 5 5 9" />
               </svg>
-              การจำแนกตามเกณฑ์ LDD & FAO
+              การจำแนกตามเกณฑ์ FAO
             </span>
-            <span className="text-xs text-[#5D7060]">• เกรดอ้างอิงเขตความเหมาะสม LDD</span>
+            <span className="text-xs text-[#5D7060]">• เปรียบเทียบปัจจัยพื้นที่กับช่วงเกณฑ์พืช</span>
           </div>
           <h2 className="font-heading font-black text-xl md:text-2xl text-[#142B18]">
             พืชเศรษฐกิจสำหรับแปลงนี้ ({crops.length} ชนิด)
           </h2>
           <p className="text-xs text-[#5D7060]">
-            เกรด S1–N ใช้ข้อมูล LDD Zoning ที่ครอบคลุมแปลง; ดาวเทียมใช้ตรวจน้ำและสิ่งปลูกสร้างในสภาพปัจจุบัน
+            เกรด S1–N คำนวณจากเกณฑ์ FAO ของพืชแต่ละชนิด; ระบบตรวจน้ำและสิ่งปลูกสร้างจากข้อมูลภูมิสารสนเทศในสภาพปัจจุบัน
           </p>
         </div>
 

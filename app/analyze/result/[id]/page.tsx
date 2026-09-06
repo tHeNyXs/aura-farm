@@ -206,7 +206,7 @@ export default async function AnalysisResultPage({ params, searchParams }: PageP
       };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg-base)] text-[var(--text-main)] transition-colors duration-300">
+    <div className="aura-report-page flex flex-col min-h-screen bg-[var(--bg-base)] text-[var(--text-main)] transition-colors duration-300">
       <Navbar />
 
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 md:px-8 py-8 flex flex-col gap-10">

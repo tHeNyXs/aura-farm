@@ -30,7 +30,7 @@ export async function generateMetadata({
   const { cropId } = await params;
   const crop = findCrop(cropId);
   return {
-    title: crop ? `${crop.name} — คู่มือการเพาะปลูกและเกณฑ์ LDD | Aura Farm` : "รายละเอียดพืช",
+    title: crop ? `${crop.name} — คู่มือการเพาะปลูกและเกณฑ์ FAO | Aura Farm` : "รายละเอียดพืช",
     description: crop?.description,
   };
 }
@@ -48,7 +48,7 @@ export default async function CropDetailPage({ params, searchParams }: PageProps
   const crit = crop.ldd_criteria;
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#FDFBF7] text-[#142B18]">
+    <div className="aura-crop-page flex flex-col min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)] transition-colors duration-300">
       <Navbar />
 
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 md:px-8 py-10 flex flex-col gap-8">
@@ -60,7 +60,7 @@ export default async function CropDetailPage({ params, searchParams }: PageProps
             <span>กลับหน้าผลการวิเคราะห์</span>
           </CropBackButton>
           <span className="text-slate-300">•</span>
-          <span className="text-slate-500 font-medium">คู่มือการเพาะปลูกและเกณฑ์ LDD</span>
+          <span className="text-slate-500 font-medium">คู่มือการเพาะปลูกและเกณฑ์ FAO</span>
           <span className="text-slate-300">•</span>
           <span className="text-emerald-900 font-bold">{crop.name}</span>
         </div>
@@ -88,9 +88,9 @@ export default async function CropDetailPage({ params, searchParams }: PageProps
           <div className="bg-gradient-to-br from-emerald-900 to-teal-950 text-white p-5 rounded-2xl text-center flex flex-col items-center shrink-0 shadow-sm border border-emerald-700/40">
             <span className="text-[11px] text-emerald-200 font-medium">มาตรฐานอ้างอิง</span>
             <span className="font-heading font-black text-lg text-amber-300 mt-0.5 tracking-tight">
-              LDD & FAO (1983)
+              FAO (เกณฑ์พืช)
             </span>
-            <span className="text-[10px] text-emerald-300/80 mt-0.5">กรมพัฒนาที่ดิน</span>
+            <span className="text-[10px] text-emerald-300/80 mt-0.5">เกณฑ์ที่ใช้ในระบบ</span>
           </div>
         </div>
 
@@ -133,14 +133,14 @@ export default async function CropDetailPage({ params, searchParams }: PageProps
           </div>
         </div>
 
-        {/* ── Official LDD Matrix Table ── */}
+        {/* ── FAO criteria table ── */}
         {crit && (
           <div className="bg-white border border-[#E5E0D5] rounded-3xl p-6 md:p-8 flex flex-col gap-4 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#E5E0D5]">
               <div>
                 <h3 className="font-heading font-bold text-lg text-[#142B18] flex items-center gap-2">
                   <span>📋</span>
-                  <span>ตารางเกณฑ์ความต้องการพืชตามคู่มือกรมพัฒนาที่ดิน (LDD Matrix)</span>
+                  <span>ตารางเกณฑ์ความต้องการพืชตาม FAO</span>
                 </h3>
                 <p className="text-xs text-[#5D7060] mt-0.5">
                   ช่วงค่าทางกายภาพที่ใช้ตัดสินชั้นความเหมาะสม S1, S2, S3 และ N ด้วยวิธีปัจจัยจำกัดสูงสุด

@@ -30,7 +30,7 @@ export async function generateMetadata({
   const { result } = analysis;
   return {
     title: `พืชแนะนำสำหรับ: ${result.location_name} — Aura Farm`,
-    description: "รายชื่อสายพันธุ์พืชที่เหมาะสมที่สุดตามผลการประเมินดาวเทียม 5 มิติและกรมพัฒนาที่ดิน",
+    description: "รายชื่อพืชที่เหมาะสมที่สุดตามผลการประเมินข้อมูลภูมิสารสนเทศและเกณฑ์ FAO",
   };
 }
 
@@ -51,7 +51,7 @@ export default async function CropRecommendationsPage({ params, searchParams }: 
   const { result: analysis, rankedCrops } = storedAnalysis;
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg-base)] text-[var(--text-main)] transition-colors duration-300">
+    <div className="aura-crop-results flex flex-col min-h-screen bg-[var(--bg-base)] text-[var(--text-main)] transition-colors duration-300">
       <Navbar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 md:px-10 py-10 flex flex-col gap-8">
@@ -63,13 +63,13 @@ export default async function CropRecommendationsPage({ params, searchParams }: 
               <span>กลับไปยังรายงานผลวิเคราะห์ที่ดิน</span>
             </Link>
             <span className="text-[var(--text-muted)]">•</span>
-            <span className="text-[var(--text-muted)] font-medium">การประเมินความเหมาะสม 13 พืชตามมาตรฐาน FAO / LDD</span>
+            <span className="text-[var(--text-muted)] font-medium">การประเมินความเหมาะสม 13 พืชตามเกณฑ์ FAO</span>
           </div>
           <h1 className="font-heading font-black text-2xl md:text-4xl text-[var(--text-main)] tracking-tight">
             รายชื่อพืชแนะนำสำหรับ {analysis.location_name}
           </h1>
           <p className="text-xs sm:text-sm text-[var(--text-muted)] leading-relaxed max-w-3xl">
-            ระดับความเหมาะสม (เกรด S1 ถึง N) ประเมินตามเกณฑ์มาตรฐานของ <strong>FAO และกรมพัฒนาที่ดิน (LDD)</strong> โดยนำดัชนีดาวเทียมสดร่วมจำแนกข้อจำกัดของดิน สภาพภูมิอากาศ และการระบายน้ำอย่างแม่นยำ
+            ระดับความเหมาะสม (เกรด S1 ถึง N) ประเมินตามเกณฑ์ <strong>FAO</strong> โดยนำข้อมูลภูมิสารสนเทศมาประกอบการตรวจข้อจำกัดของดิน สภาพภูมิอากาศ น้ำ และสิ่งปลูกสร้าง
           </p>
         </div>
 
