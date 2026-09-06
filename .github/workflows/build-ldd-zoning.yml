@@ -1,0 +1,88 @@
+name: Build LDD Zoning release
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_release_tag:
+        description: Release tag that contains ldd-zoning-source.zip in this repository
+        required: true
+        default: ldd-zoning-source-v1
+        type: string
+      release_tag:
+        description: New GitHub Release tag for the generated database
+        required: true
+        default: ldd-zoning-v1
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install geospatial dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends gdal-bin libgdal-dev libgeos-dev unzip
+          python -m pip install --upgrade pip
+          python -m pip install -r backend/requirements.txt
+
+      - name: Download and unpack official LDD source
+        env:
+          SOURCE_RELEASE_TAG: ${{ inputs.source_release_tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          case "$SOURCE_RELEASE_TAG" in
+            *[!A-Za-z0-9._-]*|'')
+              echo "The source release tag contains unsupported characters."
+              exit 1
+              ;;
+            *) ;;
+          esac
+          gh release download "$SOURCE_RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "ldd-zoning-source.zip" \
+            --dir /tmp
+          test -f /tmp/ldd-zoning-source.zip
+          unzip -q /tmp/ldd-zoning-source.zip -d /tmp/ldd-zoning-source
+          SOURCE_ROOT="$(find /tmp/ldd-zoning-source -type d -name Cassava -print -quit | xargs -r dirname)"
+          test -n "$SOURCE_ROOT"
+          test -d "$SOURCE_ROOT/Rice"
+          echo "SOURCE_ROOT=$SOURCE_ROOT" >> "$GITHUB_ENV"
+
+      - name: Build complete Thailand Zoning database
+        run: |
+          python -c "import geopandas, pyogrio; print('Importer versions:', 'geopandas=' + geopandas.__version__, 'pyogrio=' + pyogrio.__version__)"
+          python backend/scripts/import_ldd_zoning.py "$SOURCE_ROOT" /tmp/ldd_zoning.sqlite
+          FEATURE_COUNT="$(python -c "import sqlite3; c=sqlite3.connect('/tmp/ldd_zoning.sqlite'); print(c.execute('SELECT COUNT(*) FROM zoning_features').fetchone()[0])")"
+          echo "Imported feature count: $FEATURE_COUNT"
+          test "$FEATURE_COUNT" -gt 0 || {
+            echo "No LDD Zoning features were imported. The release will not be published."
+            exit 1
+          }
+          gzip --best --keep /tmp/ldd_zoning.sqlite
+          test "$(stat --format=%s /tmp/ldd_zoning.sqlite.gz)" -lt 2147483648
+          sha256sum /tmp/ldd_zoning.sqlite.gz > /tmp/ldd_zoning.sqlite.gz.sha256
+
+      - name: Publish database release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 && {
+            echo "Release tag already exists. Choose a new tag so no published data is overwritten."
+            exit 1
+          }
+          gh release create "$RELEASE_TAG" \
+            /tmp/ldd_zoning.sqlite.gz \
+            /tmp/ldd_zoning.sqlite.gz.sha256 \
+            --title "LDD Zoning database $RELEASE_TAG" \
+            --notes "Generated from the complete LDD Zoning source. See the SHA-256 asset before configuring Render."

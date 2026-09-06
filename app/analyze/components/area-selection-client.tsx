@@ -1,0 +1,826 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import * as turf from "@turf/turf";
+import { DrawingTool } from "./satellite-map";
+import { SavedParcelItem } from "@/app/analyze/result/[id]/components/save-parcel-button";
+
+// Maximum allowable area size in Rai for optimal satellite resolution
+const MAX_ALLOWED_RAI = 200;
+const RECOMMENDED_MAX_RAI = 80;
+
+function boundsFromPolygon(coords: [number, number][]) {
+  const latitudes = coords.map(([lat]) => lat);
+  const longitudes = coords.map(([, lon]) => lon);
+  return {
+    latMin: Math.min(...latitudes).toFixed(7),
+    latMax: Math.max(...latitudes).toFixed(7),
+    lonMin: Math.min(...longitudes).toFixed(7),
+    lonMax: Math.max(...longitudes).toFixed(7),
+  };
+}
+
+// Dynamically import map component with SSR disabled to prevent Leaflet window errors
+const SatelliteMap = dynamic(() => import("./satellite-map"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex flex-col items-center justify-center bg-[#1a2419] text-line gap-3">
+      <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+      <span className="font-mono text-xs uppercase tracking-wider text-accent">
+        กำลังโหลดแผนที่ดาวเทียมความละเอียดสูง...
+      </span>
+    </div>
+  ),
+});
+
+const GoogleSatelliteMap = dynamic(() => import("./google-satellite-map"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center bg-[#1a2419] text-line text-xs">
+      กำลังโหลด Google Maps...
+    </div>
+  ),
+});
+
+const hasGoogleMapsKey = Boolean(process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
+
+const AI_ANALYZING_STEPS = [
+  "กำลังเชื่อมต่อข้อมูลดาวเทียม Sentinel-2...",
+  "วิเคราะห์สเปกตรัมสะท้อนแสงเพื่อคำนวณดัชนีพืชพรรณ (NDVI)...",
+  "ประเมินระดับความชื้นในดิน (SAR Soil Moisture) และการอุ้มน้ำ...",
+  "คำนวณความลาดชันและการระบายน้ำจากแบบจำลอง DEM...",
+  "ระบบ AI กำลังคำนวณคะแนนและจัดเกรดพืชเศรษฐกิจที่เหมาะสม...",
+];
+
+export default function AreaSelectionClient() {
+  const router = useRouter();
+
+  // Tab State: "draw" (Default) | "saved"
+  const [activeTab, setActiveTab] = useState<"draw" | "saved">("draw");
+
+  // Polygon & Area State
+  const [activePolygon, setActivePolygon] = useState<[number, number][] | null>(null);
+  const [areaRai, setAreaRai] = useState<number>(0);
+  const [areaHa, setAreaHa] = useState<number>(0);
+  const [flyToCoords, setFlyToCoords] = useState<{
+    lat: number;
+    lng: number;
+    zoom?: number;
+  } | null>(null);
+  const [coordinateBounds, setCoordinateBounds] = useState({
+    latMin: "",
+    latMax: "",
+    lonMin: "",
+    lonMax: "",
+  });
+  const [coordinateError, setCoordinateError] = useState<string | null>(null);
+
+  // Drawing Tool State (Default to 'polygon')
+  const [activeTool, setActiveTool] = useState<DrawingTool>("polygon");
+
+  // Saved Parcels State from LocalStorage
+  const [savedParcels, setSavedParcels] = useState<SavedParcelItem[]>([]);
+
+  // AI Processing State
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analyzingStepIndex, setAnalyzingStepIndex] = useState(0);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Load saved parcels from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("aura_farm_saved_parcels");
+      if (stored) {
+        setSavedParcels(JSON.parse(stored));
+      }
+    } catch {
+      // LocalStorage access fallback
+    }
+  }, []);
+
+  // Handle selecting a saved parcel
+  const handleSelectSavedParcel = (parcel: SavedParcelItem) => {
+    if (parcel.polygon && parcel.polygon.length >= 3) {
+      setActivePolygon(parcel.polygon);
+      setCoordinateBounds(boundsFromPolygon(parcel.polygon));
+      setCoordinateError(null);
+      setAreaRai(parcel.area_rai);
+      setAreaHa(parcel.area_ha);
+      setFlyToCoords({ lat: parcel.lat, lng: parcel.lng, zoom: 16 });
+      setActiveTool("none");
+    }
+  };
+
+  // Handle deleting a saved parcel
+  const handleDeleteSavedParcel = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    try {
+      const updated = savedParcels.filter((p) => p.id !== id);
+      setSavedParcels(updated);
+      localStorage.setItem("aura_farm_saved_parcels", JSON.stringify(updated));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Handle custom drawing updates from Leaflet map
+  const handlePolygonChange = (
+    coords: [number, number][],
+    rai: number,
+    ha: number
+  ) => {
+    setActivePolygon(coords);
+    setCoordinateBounds(boundsFromPolygon(coords));
+    setCoordinateError(null);
+    setAreaRai(rai);
+    setAreaHa(ha);
+  };
+
+  // Handle clearing polygon
+  const handleClearPolygon = () => {
+    setActivePolygon(null);
+    setCoordinateBounds({ latMin: "", latMax: "", lonMin: "", lonMax: "" });
+    setCoordinateError(null);
+    setAreaRai(0);
+    setAreaHa(0);
+    setActiveTool("polygon");
+  };
+
+  // Create a rectangular parcel from the supplied geographic bounds.
+  const handleCreatePolygonFromBounds = () => {
+    if (Object.values(coordinateBounds).some((value) => value.trim() === "")) {
+      setCoordinateError("กรุณากรอกพิกัดทั้ง 4 ค่า");
+      return;
+    }
+    const latMin = Number(coordinateBounds.latMin);
+    const latMax = Number(coordinateBounds.latMax);
+    const lonMin = Number(coordinateBounds.lonMin);
+    const lonMax = Number(coordinateBounds.lonMax);
+
+    if (![latMin, latMax, lonMin, lonMax].every(Number.isFinite)) {
+      setCoordinateError("กรุณากรอกพิกัดทั้ง 4 ค่าเป็นตัวเลข");
+      return;
+    }
+    if (latMin >= latMax || lonMin >= lonMax) {
+      setCoordinateError("ต้องกำหนดให้ lat_min < lat_max และ lon_min < lon_max");
+      return;
+    }
+    if (latMin < 5.2 || latMax > 20.9 || lonMin < 96 || lonMax > 106.2) {
+      setCoordinateError("ระบบรองรับเฉพาะพื้นที่ในประเทศไทย (ละติจูด 5.2–20.9, ลองจิจูด 96–106.2)");
+      return;
+    }
+
+    const polygon: [number, number][] = [
+      [latMin, lonMin],
+      [latMin, lonMax],
+      [latMax, lonMax],
+      [latMax, lonMin],
+    ];
+    const ring = polygon.map(([lat, lon]) => [lon, lat]);
+    ring.push(ring[0]);
+    const squareMetres = turf.area(turf.polygon([ring]));
+
+    setCoordinateError(null);
+    setActivePolygon(polygon);
+    setAreaRai(Number((squareMetres / 1600).toFixed(1)));
+    setAreaHa(Number((squareMetres / 10000).toFixed(2)));
+    setFlyToCoords({ lat: (latMin + latMax) / 2, lng: (lonMin + lonMax) / 2, zoom: 16 });
+    setActiveTool("none");
+  };
+
+  // Handle click "วิเคราะห์พื้นที่นี้" with AI Analysis Engine
+  const handleAnalyzeClick = async () => {
+    if (!activePolygon || activePolygon.length < 3) {
+      alert("กรุณาวาดแปลงที่ดินบนแผนที่ก่อนเริ่มการวิเคราะห์");
+      return;
+    }
+
+    if (areaRai > MAX_ALLOWED_RAI) {
+      alert(
+        `ขนาดแปลงที่ดินของคุณอยู่ที่ ${areaRai} ไร่ ซึ่งเกินขีดจำกัดสูงสุด (${MAX_ALLOWED_RAI} ไร่)\n\nเพื่อความแม่นยำในการวิเคราะห์สภาพดินและความลาดชัน กรุณากดปุ่ม "ล้างแปลงที่วาด" เพื่อวาดใหม่ หรือแบ่งเป็นแปลงย่อย`
+      );
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setAnalyzingStepIndex(0);
+
+    // Step-by-step progress animation
+    const stepInterval = setInterval(() => {
+      setAnalyzingStepIndex((prev) => {
+        if (prev < AI_ANALYZING_STEPS.length - 1) {
+          return prev + 1;
+        }
+        return prev;
+      });
+    }, 550);
+
+    try {
+      const freshId = `survey-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          polygon: activePolygon,
+          custom_id: freshId,
+        }),
+      });
+
+      const data = await response.json();
+      clearInterval(stepInterval);
+
+      if (data.success && data.analysis_id) {
+        const polyParam = encodeURIComponent(JSON.stringify(activePolygon));
+        setTimeout(() => {
+          router.push(`/analyze/result/${data.analysis_id}?poly=${polyParam}`);
+        }, 400);
+      } else {
+        alert(data.error || "เกิดข้อผิดพลาดในการวิเคราะห์พื้นที่");
+        setIsAnalyzing(false);
+      }
+    } catch (error) {
+      clearInterval(stepInterval);
+      console.error("Analysis Request Error:", error);
+      alert("ไม่สามารถเชื่อมต่อระบบ AI วิเคราะห์พื้นที่ได้");
+      setIsAnalyzing(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col w-full h-[100dvh] overflow-hidden bg-bg">
+      {/* ═══════════════════════════════════════════
+          HEADER
+         ═══════════════════════════════════════════ */}
+      <header className="h-16 bg-panel border-b border-line px-4 sm:px-6 lg:px-8 flex items-center justify-between z-30 shrink-0">
+        {/* Logo Group */}
+        <Link href="/" className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <ellipse
+                cx="12"
+                cy="12"
+                rx="11"
+                ry="4.5"
+                stroke="#37523A"
+                strokeWidth="1.2"
+              />
+              <circle cx="12" cy="12" r="4" fill="#37523A" />
+              <circle cx="18" cy="8" r="3" fill="#B4841F" />
+            </svg>
+          </div>
+          <span className="font-heading font-bold text-xl text-primary-dark">
+            Aura Farm
+          </span>
+        </Link>
+
+        {/* Mode Indicator */}
+        <div className="hidden md:flex items-center gap-2 text-xs font-semibold text-primary">
+          <span className="w-2 h-2 rounded-full bg-accent pulse-dot-anim" />
+          <span>ระบบดาวเทียม Sentinel-2 ความละเอียดสูง (10m)</span>
+        </div>
+
+        {/* Action Button: กลับหน้าหลัก */}
+        <Link
+          href="/"
+          className="px-3.5 py-1.5 bg-panel border border-line rounded-md text-xs font-semibold text-primary hover:bg-bg transition-colors flex items-center gap-1.5"
+        >
+          <span>←</span>
+          <span>กลับหน้าหลัก</span>
+        </Link>
+      </header>
+
+      {/* ═══════════════════════════════════════════
+          SPLIT CONTAINER: SIDEBAR + SATELLITE MAP
+         ═══════════════════════════════════════════ */}
+      <div className="flex flex-col lg:flex-row flex-1 w-full relative overflow-hidden">
+        {/* ── Left Sidebar (380px) ───────────────── */}
+        <aside className={`absolute lg:relative inset-0 lg:inset-auto lg:w-[380px] bg-panel lg:border-r border-line flex-col shrink-0 z-[2000] lg:z-20 overflow-y-auto ${isMobileSidebarOpen ? "flex" : "hidden lg:flex"}`}>
+          {/* Mobile Close Button */}
+          <button 
+            onClick={() => setIsMobileSidebarOpen(false)}
+            className="lg:hidden absolute top-2 right-2 z-50 w-8 h-8 flex items-center justify-center bg-bg border border-line rounded-full text-ink-body hover:text-red-500 shadow-sm"
+          >
+            ✕
+          </button>
+          {/* Tabs Row */}
+          <div className="h-12 border-b border-line flex items-center shrink-0">
+            <button
+              onClick={() => {
+                setActiveTab("draw");
+                setActiveTool("polygon");
+              }}
+              className={`flex-1 h-full flex items-center justify-center text-xs font-bold transition-colors border-r border-line cursor-pointer ${
+                activeTab === "draw"
+                  ? "bg-bg text-primary border-b-2 border-b-primary"
+                  : "bg-panel text-ink-body hover:bg-bg/50"
+              }`}
+            >
+              ✏️ วาดแปลงที่ดิน
+            </button>
+            <button
+              onClick={() => setActiveTab("saved")}
+              className={`flex-1 h-full flex items-center justify-center text-xs font-bold transition-colors cursor-pointer ${
+                activeTab === "saved"
+                  ? "bg-bg text-primary border-b-2 border-b-primary"
+                  : "bg-panel text-ink-body hover:bg-bg/50"
+              }`}
+            >
+              💾 แปลงที่บันทึกไว้ ({savedParcels.length})
+            </button>
+          </div>
+
+          {/* Tab 1: วาดแปลงที่ดิน (Draw Tab - Default) */}
+          {activeTab === "draw" && (
+            <div className="p-5 flex flex-col gap-5 flex-1">
+              <div className="flex flex-col gap-1.5">
+                <h3 className="font-heading font-bold text-base text-primary-dark">
+                  เลือกเครื่องมือวาดแปลง
+                </h3>
+                <p className="text-xs text-ink-body leading-relaxed">
+                  คลิกบนแผนที่อย่างน้อย 3 จุดเพื่อปิดล้อมแนวเขตแปลง หรือวาดสี่เหลี่ยม จากนั้นสามารถ<strong>คลิกลากที่จุดมุมสีทอง</strong>เพื่อปรับขนาดได้
+                </p>
+              </div>
+
+              {/* Drawing options buttons */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  onClick={() => setActiveTool("polygon")}
+                  className={`p-2.5 border rounded-md text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    activeTool === "polygon"
+                      ? "bg-primary text-bg border-primary shadow-xs"
+                      : "bg-bg border-line text-primary hover:border-primary"
+                  }`}
+                >
+                  <span>⬡</span>
+                  <span>วาดหลายเหลี่ยม (จุด)</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTool("rectangle")}
+                  className={`p-2.5 border rounded-md text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    activeTool === "rectangle"
+                      ? "bg-primary text-bg border-primary shadow-xs"
+                      : "bg-bg border-line text-primary hover:border-primary"
+                  }`}
+                >
+                  <span>▢</span>
+                  <span>วาดกรอบสี่เหลี่ยม</span>
+                </button>
+              </div>
+
+              <section className="rounded-lg border border-line bg-bg p-3.5" aria-labelledby="coordinate-bounds-title">
+                <div className="mb-2">
+                  <h4 id="coordinate-bounds-title" className="text-xs font-bold text-primary-dark">
+                    สร้างกรอบจากพิกัด
+                  </h4>
+                  <p className="mt-1 text-[11px] leading-relaxed text-ink-soft">
+                    กรอกขอบเขตพื้นที่เพื่อทดสอบ: lat_min, lat_max, lon_min และ lon_max
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    ["latMin", "lat_min"],
+                    ["latMax", "lat_max"],
+                    ["lonMin", "lon_min"],
+                    ["lonMax", "lon_max"],
+                  ] as const).map(([key, label]) => (
+                    <label key={key} className="flex flex-col gap-1 text-[11px] font-semibold text-ink-body">
+                      {label}
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        step="any"
+                        value={coordinateBounds[key]}
+                        onChange={(event) => setCoordinateBounds((current) => ({ ...current, [key]: event.target.value }))}
+                        placeholder={key.startsWith("lat") ? "เช่น 13.7500" : "เช่น 100.5000"}
+                        className="w-full rounded border border-line bg-panel px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-primary"
+                      />
+                    </label>
+                  ))}
+                </div>
+                {coordinateError && <p role="alert" className="mt-2 text-[11px] leading-relaxed text-red-700">{coordinateError}</p>}
+                <button
+                  type="button"
+                  onClick={handleCreatePolygonFromBounds}
+                  className="mt-3 w-full rounded-md bg-primary px-3 py-2 text-xs font-bold text-bg transition-colors hover:bg-primary-dark"
+                >
+                  สร้างกรอบจากพิกัด
+                </button>
+              </section>
+
+              {/* Status summary */}
+              <div
+                className={`border rounded-lg p-4 flex flex-col gap-3 transition-colors ${
+                  areaRai > MAX_ALLOWED_RAI
+                    ? "bg-red-50/80 border-red-300"
+                    : "bg-bg border-line"
+                }`}
+              >
+                <div className="flex items-center justify-between border-b border-line pb-2">
+                  <span className="text-xs text-primary font-bold">
+                    สถานะแปลง
+                  </span>
+                  <span
+                    className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                      areaRai > MAX_ALLOWED_RAI
+                        ? "bg-red-200 text-red-900 border border-red-300"
+                        : activePolygon && activePolygon.length >= 3
+                        ? "bg-[#EBF5EB] text-[#22543D] border border-[#A3D9A5]"
+                        : "bg-amber-100 text-amber-800"
+                    }`}
+                  >
+                    {areaRai > MAX_ALLOWED_RAI
+                      ? `⚠️ เกิน ${MAX_ALLOWED_RAI} ไร่`
+                      : activePolygon && activePolygon.length >= 3
+                      ? "พร้อมวิเคราะห์"
+                      : "รอการวาดบนแผนที่"}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-ink-soft">ขนาดพื้นที่คำนวณ:</span>
+                  <span
+                    className={`font-heading font-bold text-base ${
+                      areaRai > MAX_ALLOWED_RAI
+                        ? "text-red-700"
+                        : "text-primary-dark"
+                    }`}
+                  >
+                    {areaRai > 0
+                      ? `${areaRai} ไร่ (${areaHa} ha)`
+                      : "0.0 ไร่"}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-ink-soft">จำนวนจุดมุม (Vertices):</span>
+                  <span className="font-semibold text-primary">
+                    {activePolygon ? activePolygon.length : 0} จุด
+                  </span>
+                </div>
+
+                {/* Exceeded Warning Banner */}
+                {areaRai > MAX_ALLOWED_RAI && (
+                  <div className="mt-1 p-2.5 bg-red-100 border border-red-300 rounded text-xs text-red-900 flex flex-col gap-1 leading-relaxed">
+                    <span className="font-bold">⚠️ ขนาดแปลงเกินเกณฑ์สูงสุด:</span>
+                    <span>
+                      แปลงมีขนาด <strong>{areaRai} ไร่</strong> (จำกัดสูงสุด <strong>{MAX_ALLOWED_RAI} ไร่</strong>) กรุณากดปุ่มล้างแปลงแล้ววาดใหม่ หรือแบ่งเป็นแปลงย่อย
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Area Size Guidelines Box */}
+              <div className="bg-bg border border-line rounded-lg p-3.5 flex flex-col gap-2 text-xs">
+                <div className="flex items-center gap-2 text-primary-dark font-bold">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.3 15.3l-9.6-9.6a2 2 0 0 0-2.8 0L3.3 11.3a2 2 0 0 0 0 2.8l9.6 9.6a2 2 0 0 0 2.8 0l5.6-5.6a2 2 0 0 0 0-2.8z" />
+                    <path d="M7.5 15.5l2-2" /><path d="M10.5 12.5l2-2" /><path d="M13.5 9.5l2-2" />
+                  </svg>
+                  <span>เกณฑ์ขนาดแปลงเพื่อความแม่นยำสูงสุด:</span>
+                </div>
+                <div className="flex flex-col gap-1.5 text-[11px] text-ink-body">
+                  <div className="flex items-start gap-1.5">
+                    <span className="text-emerald-700 font-bold">แนะนำ:</span>
+                    <span><strong>2 – {RECOMMENDED_MAX_RAI} ไร่</strong> (ความแม่นยำระดับพิกเซลดาวเทียมสูงสุด)</span>
+                  </div>
+                  <div className="flex items-start gap-1.5">
+                    <span className="text-amber-700 font-bold">จำกัดสูงสุด:</span>
+                    <span>ไม่เกิน <strong>{MAX_ALLOWED_RAI} ไร่</strong> ต่อ 1 การวิเคราะห์</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Clear Button */}
+              {activePolygon && (
+                <button
+                  onClick={handleClearPolygon}
+                  className="px-4 py-2 border border-red-200 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors self-start cursor-pointer flex items-center gap-1.5"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                  <span>ล้างแปลงที่วาด (วาดใหม่)</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Tab 2: แปลงที่บันทึกไว้ (Saved Parcels Tab) */}
+          {activeTab === "saved" && (
+            <div className="p-5 flex flex-col gap-4 flex-1">
+              <div className="flex flex-col gap-1">
+                <h3 className="font-heading font-bold text-sm text-primary-dark">
+                  รายการแปลงที่ดินที่บันทึกไว้
+                </h3>
+                <p className="text-xs text-ink-soft">
+                  คลิกที่แปลงเพื่อโหลดแนวเขตขึ้นบนแผนที่ดาวเทียมทันที
+                </p>
+              </div>
+
+              {savedParcels.length === 0 ? (
+                <div className="bg-bg border border-dashed border-line rounded-lg p-8 text-center flex flex-col items-center gap-2 text-ink-soft my-auto">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-400">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  </svg>
+                  <span className="text-xs font-semibold text-primary-dark">
+                    ยังไม่มีแปลงที่ดินที่บันทึกไว้
+                  </span>
+                  <span className="text-[11px] leading-relaxed">
+                    เมื่อคุณวาดและวิเคราะห์แปลงเสร็จแล้ว สามารถกดปุ่ม <strong>&ldquo;บันทึกแปลงนี้&rdquo;</strong> ในหน้ารายงานได้ครับ
+                  </span>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  {savedParcels.map((parcel) => (
+                    <div
+                      key={parcel.id}
+                      onClick={() => handleSelectSavedParcel(parcel)}
+                      className="p-3.5 bg-bg border border-line hover:border-primary rounded-lg text-left transition-all flex items-center justify-between cursor-pointer group shadow-xs"
+                    >
+                      <div className="flex flex-col gap-0.5 flex-1 pr-2">
+                        <span className="font-bold text-sm text-primary-dark group-hover:text-primary">
+                          {parcel.name}
+                        </span>
+                        <span className="text-[11px] text-ink-soft">
+                          {parcel.saved_at} • {parcel.area_rai} ไร่
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                          {parcel.area_rai} ไร่
+                        </span>
+                        <button
+                          onClick={(e) => handleDeleteSavedParcel(e, parcel.id)}
+                          title="ลบแปลงนี้"
+                          className="text-slate-400 hover:text-red-700 p-1 text-xs transition-colors"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </aside>
+
+        {/* ── Main Map Area ───────────────────────── */}
+        <main className="flex-1 relative h-[550px] lg:h-[calc(100vh-64px)] w-full overflow-hidden">
+          {hasGoogleMapsKey ? <GoogleSatelliteMap
+            tool={activeTool}
+            onToolChange={setActiveTool}
+            selectedPolygon={activePolygon}
+            onPolygonChange={handlePolygonChange}
+            flyToCoords={flyToCoords}
+          /> : <SatelliteMap
+            tool={activeTool}
+            onToolChange={setActiveTool}
+            selectedPolygon={activePolygon}
+            onPolygonChange={handlePolygonChange}
+            flyToCoords={flyToCoords}
+          />}
+
+          <button
+            type="button"
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="lg:hidden absolute top-4 right-4 z-[1000] rounded-xl px-3.5 py-2.5 text-xs font-bold text-white shadow-2xl"
+            style={{
+              background: "#081812",
+              border: "1px solid rgba(44, 201, 160, 0.4)",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
+            }}
+          >
+            ☰ เครื่องมือและพิกัด
+          </button>
+
+          {/* ═══════════════════════════════════════════
+              DRAWING TOOLBAR (Top-Left on Map)
+             ═══════════════════════════════════════════ */}
+          <div
+            className="absolute top-4 left-4 right-4 sm:top-5 sm:left-5 sm:right-auto z-[1000] max-w-[calc(100%-32px)] sm:max-w-[calc(100%-40px)] rounded-xl p-1.5 flex flex-wrap items-center gap-1.5 shadow-2xl"
+            style={{
+              background: "#081812",
+              border: "1px solid rgba(44, 201, 160, 0.4)",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.6)",
+            }}
+          >
+            <button
+              onClick={() =>
+                setActiveTool(activeTool === "polygon" ? "none" : "polygon")
+              }
+              title="วาดรูปหลายเหลี่ยม (Polygon)"
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeTool === "polygon"
+                  ? "bg-emerald-600 text-white shadow-xs"
+                  : "bg-transparent text-emerald-300 hover:bg-emerald-950/80 hover:text-white"
+              }`}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2" />
+              </svg>
+              <span className="hidden sm:inline">วาดหลายเหลี่ยม</span><span className="sm:hidden">วาดจุด</span>
+            </button>
+
+            <button
+              onClick={() =>
+                setActiveTool(activeTool === "rectangle" ? "none" : "rectangle")
+              }
+              title="วาดสี่เหลี่ยม (Rectangle)"
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeTool === "rectangle"
+                  ? "bg-emerald-600 text-white shadow-xs"
+                  : "bg-transparent text-emerald-300 hover:bg-emerald-950/80 hover:text-white"
+              }`}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+              </svg>
+              <span className="hidden sm:inline">วาดสี่เหลี่ยม</span><span className="sm:hidden">วาดกรอบ</span>
+            </button>
+
+            <span className="w-px h-4 bg-emerald-700/60 mx-1" />
+
+            <button
+              onClick={handleClearPolygon}
+              title="ลบแปลงที่วาด (วาดใหม่)"
+              className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-red-300 hover:text-white hover:bg-red-950/60 transition-colors cursor-pointer flex items-center gap-1"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              <span>ล้าง</span>
+            </button>
+
+          </div>
+
+          {/* ═══════════════════════════════════════════
+              FLOATING AREA BADGE
+             ═══════════════════════════════════════════ */}
+          {areaRai > 0 && (
+            <div
+              className="absolute top-20 left-4 sm:left-5 z-[1000] rounded-xl px-4 py-2.5 flex items-center gap-3 shadow-2xl animate-fade-in"
+              style={{
+                background: areaRai > MAX_ALLOWED_RAI ? "#3B0707" : "#081812",
+                border: areaRai > MAX_ALLOWED_RAI ? "1px solid #EF4444" : "1px solid rgba(44, 201, 160, 0.5)",
+                color: "#ffffff",
+                boxShadow: "0 10px 25px rgba(0,0,0,0.7)",
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className={areaRai > MAX_ALLOWED_RAI ? "text-red-400" : "text-emerald-400"}>
+                <path d="M12 22V12" /><path d="M5 12H2a10 10 0 0 0 20 0h-3" /><path d="M12 12C12 6 7 3 7 3s0 5 5 9" />
+              </svg>
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-heading font-black text-lg text-white">
+                  {areaRai}
+                </span>
+                <span className="text-xs font-semibold text-emerald-300">
+                  ไร่ ({areaHa} ha)
+                </span>
+              </div>
+
+              {areaRai > MAX_ALLOWED_RAI && (
+                <span className="px-2 py-0.5 rounded bg-red-800 text-red-100 text-[10px] font-bold">
+                  เกิน {MAX_ALLOWED_RAI} ไร่
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════
+              ACTION FLOATING BAR (Bottom Right on Map)
+             ═══════════════════════════════════════════ */}
+          <div
+            className="absolute bottom-5 left-4 right-4 md:left-auto md:right-5 z-[1000] rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-2xl"
+            style={{
+              background: "#081812",
+              border: "1px solid rgba(44, 201, 160, 0.4)",
+              boxShadow: "0 12px 36px rgba(0,0,0,0.7)",
+              color: "#ffffff",
+            }}
+          >
+            <div className="flex flex-col text-center md:text-left">
+              <span
+                className={`font-heading font-bold text-sm ${
+                  areaRai > MAX_ALLOWED_RAI ? "text-red-400" : "text-white"
+                }`}
+              >
+                {areaRai > MAX_ALLOWED_RAI
+                  ? `⚠️ ขนาดแปลงเกินเกณฑ์ (${areaRai} > ${MAX_ALLOWED_RAI} ไร่)`
+                  : areaRai > 0
+                  ? `พร้อมวิเคราะห์แปลง (${areaRai} ไร่)`
+                  : "คลิกบนแผนที่เพื่อเริ่มวาดแปลง"}
+              </span>
+              <span className="text-[11px] text-emerald-300/80">
+                {areaRai > MAX_ALLOWED_RAI
+                  ? "กรุณาล้างเพื่อวาดใหม่ หรือแบ่งเป็นแปลงย่อย"
+                  : "ข้อมูลดาวเทียม Sentinel-2 และเกณฑ์ FAO"}
+              </span>
+            </div>
+
+            <button
+              onClick={handleAnalyzeClick}
+              disabled={
+                isAnalyzing ||
+                !activePolygon ||
+                activePolygon.length < 3 ||
+                areaRai > MAX_ALLOWED_RAI
+              }
+              className={`w-full md:w-auto px-6 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer ${
+                areaRai > MAX_ALLOWED_RAI
+                  ? "bg-red-950 text-red-400 border border-red-800 cursor-not-allowed opacity-60"
+                  : "btn-primary"
+              }`}
+            >
+              {isAnalyzing ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>กำลังวิเคราะห์...</span>
+                </>
+              ) : areaRai > MAX_ALLOWED_RAI ? (
+                "ขนาดเกินเกณฑ์ (วาดใหม่)"
+              ) : (
+                "วิเคราะห์พื้นที่นี้ →"
+              )}
+            </button>
+          </div>
+        </main>
+      </div>
+
+      {/* ═══════════════════════════════════════════
+          AI SCANNING & ANALYSIS MODAL OVERLAY
+         ═══════════════════════════════════════════ */}
+      {isAnalyzing && (
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div
+            className="rounded-2xl max-w-md w-full p-8 flex flex-col items-center gap-6 shadow-2xl animate-fade-in"
+            style={{
+              background: "#081812",
+              border: "1px solid rgba(44, 201, 160, 0.5)",
+              color: "#ffffff",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.8)",
+            }}
+          >
+            <div className="relative w-20 h-20 flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full border-2 border-dashed border-emerald-400 animate-spin" />
+              <div className="w-12 h-12 rounded-full bg-emerald-700 flex items-center justify-center shadow-lg text-white">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <ellipse cx="12" cy="12" rx="11" ry="4.5" />
+                  <circle cx="12" cy="12" r="3.5" fill="#ffffff" />
+                </svg>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center text-center gap-1.5">
+              <span className="text-xs uppercase font-mono font-bold tracking-wider" style={{ color: "var(--color-teal)" }}>
+                Aura Farm AI Engine
+              </span>
+              <h3 className="font-heading font-black text-2xl text-white">
+                กำลังวิเคราะห์ศักยภาพแปลงที่ดิน
+              </h3>
+            </div>
+
+            <div className="w-full bg-bg border border-line rounded-lg p-4 text-center">
+              <p className="text-xs font-semibold text-primary-dark min-h-[40px] flex items-center justify-center transition-all">
+                {AI_ANALYZING_STEPS[analyzingStepIndex]}
+              </p>
+            </div>
+
+            <div className="w-full flex flex-col gap-1.5">
+              <div className="w-full h-2 bg-line/40 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-accent transition-all duration-300 rounded-full"
+                  style={{
+                    width: `${((analyzingStepIndex + 1) / AI_ANALYZING_STEPS.length) * 100}%`,
+                  }}
+                />
+              </div>
+              <div className="flex justify-between text-[10px] font-mono text-ink-soft">
+                <span>ขั้นตอนที่ {analyzingStepIndex + 1} จาก {AI_ANALYZING_STEPS.length}</span>
+                <span>
+                  {Math.round(
+                    ((analyzingStepIndex + 1) / AI_ANALYZING_STEPS.length) * 100
+                  )}
+                  %
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
