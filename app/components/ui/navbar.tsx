@@ -54,6 +54,7 @@ function ParcelIcon() {
 export default function Navbar() {
   const [isDark, setIsDark] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   /* Sync theme from <html data-theme> on mount */
   useEffect(() => {
@@ -192,6 +193,20 @@ export default function Navbar() {
               <span className="sm:hidden">แปลงของฉัน</span>
             </Link>
 
+            {/* Mobile navigation: exposes the same sections and main CTA as desktop. */}
+            <button
+              type="button"
+              className="lg:hidden theme-toggle"
+              onClick={() => setIsMenuOpen((open) => !open)}
+              aria-expanded={isMenuOpen}
+              aria-controls="mobile-navigation"
+              aria-label={isMenuOpen ? "ปิดเมนู" : "เปิดเมนู"}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                {isMenuOpen ? <><path d="m6 6 12 12" /><path d="m18 6-12 12" /></> : <><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></>}
+              </svg>
+            </button>
+
             {/* Dark / Light Toggle */}
             <button
               id="nav-theme-toggle"
@@ -204,6 +219,44 @@ export default function Navbar() {
             </button>
           </div>
         </nav>
+
+        {isMenuOpen && (
+          <div
+            id="mobile-navigation"
+            className="lg:hidden pointer-events-auto mx-3 mt-2 rounded-2xl p-2 shadow-xl anim-slide-down"
+            style={{
+              background: "var(--bg-panel)",
+              border: "1px solid var(--border-mid)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+            }}
+          >
+            <div className="grid grid-cols-1 gap-1">
+              {[
+                ["/#how-it-works", "ขั้นตอนการทำงาน"],
+                ["/#fao-knowledge", "เกณฑ์มาตรฐาน FAO"],
+                ["/#crops-database", "พืชเศรษฐกิจ 13 ชนิด"],
+              ].map(([href, label]) => (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setIsMenuOpen(false)}
+                  className="rounded-xl px-4 py-3 text-sm font-semibold transition-colors hover:bg-[var(--border-soft)]"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  {label}
+                </Link>
+              ))}
+              <Link
+                href="/analyze"
+                onClick={() => setIsMenuOpen(false)}
+                className="btn-primary w-full justify-center mt-1 !py-3 text-sm"
+              >
+                เริ่มวิเคราะห์พื้นที่ →
+              </Link>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Spacer keeps document flow perfectly aligned under fixed navbar */}

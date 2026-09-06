@@ -232,21 +232,21 @@ export default function CropsClient({ analysis, crops }: CropsClientProps) {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-3 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-6 md:overflow-visible">
           {filteredCrops.map((crop) => {
             const hasLddGrade = Boolean(crop.ldd_data_available || crop.is_masked_out);
             const badgeStyle = hasLddGrade ? getFaoBadgeStyle(crop.fao_class) : "bg-slate-600 text-white border-slate-700 shadow-2xs";
             const cardTheme = hasLddGrade ? getCropCardStyle(crop.fao_class) : {
               cardBg: "bg-slate-50 border-slate-200 text-slate-800",
               specBg: "bg-slate-100 border-slate-200",
-              badgeClass: "ไม่มีข้อมูล LDD",
+              badgeClass: "ไม่มีข้อมูลเกณฑ์",
               btnStyle: "bg-slate-700 text-white hover:bg-slate-800 shadow-2xs",
             };
 
             return (
               <div
                 key={crop.id}
-                className={`border rounded-3xl p-6 flex flex-col justify-between gap-5 transition-all duration-300 shadow-2xs hover:shadow-lg hover:-translate-y-1 ${cardTheme.cardBg}`}
+                className={`min-w-[82vw] snap-start border rounded-3xl p-6 flex flex-col justify-between gap-5 transition-all duration-300 shadow-2xs hover:shadow-lg hover:-translate-y-1 md:min-w-0 ${cardTheme.cardBg}`}
               >
                 <div className="flex flex-col gap-4">
                   {/* Header with Emoji & FAO Badge */}
@@ -267,7 +267,7 @@ export default function CropsClient({ analysis, crops }: CropsClientProps) {
 
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       <span className={`px-2.5 py-1 rounded-xl text-xs font-bold border ${badgeStyle}`}>
-                        {hasLddGrade ? `เกรด ${crop.fao_class}` : "ไม่มีข้อมูล LDD"}
+                        {hasLddGrade ? `เกรด ${crop.fao_class}` : "ไม่มีข้อมูลเกณฑ์"}
                       </span>
                       <span className="text-[11px] font-bold opacity-90">
                         {cardTheme.badgeClass}
@@ -284,7 +284,7 @@ export default function CropsClient({ analysis, crops }: CropsClientProps) {
                   {crop.limiting_factors && crop.limiting_factors.length > 0 && (
                     <div className="bg-amber-500/15 border border-amber-500/30 rounded-2xl p-3.5 flex flex-col gap-1 text-[11px] text-amber-950">
                       <span className="font-bold flex items-center gap-1 text-amber-900">
-                        ⚠️ ข้อจำกัด / ปัจจัยจำกัด LDD:
+                        ⚠️ ข้อจำกัด / ปัจจัยจำกัด:
                       </span>
                       <ul className="list-disc list-inside space-y-0.5 text-[11px] leading-relaxed">
                         {crop.limiting_factors.slice(0, 2).map((factor, idx) => (
@@ -336,7 +336,7 @@ export default function CropsClient({ analysis, crops }: CropsClientProps) {
                   href={`/crops/${crop.id}?analysisId=${analysis.id}`}
                   className={`w-full py-3 font-bold text-xs rounded-xl text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${cardTheme.btnStyle}`}
                 >
-                  <span>ดูเกณฑ์ LDD และคู่มือการจัดการแปลง</span>
+                  <span>ดูเกณฑ์ FAO และคู่มือการจัดการแปลง</span>
                   <span>→</span>
                 </Link>
               </div>

@@ -264,6 +264,18 @@ input:focus-visible {
   color: var(--text-secondary) !important;
 }
 
+[data-theme="dark"] .aura-crop-page [class*="text-[#2C4A32]"] {
+  color: #D9EBD9 !important;
+}
+
+[data-theme="dark"] .aura-crop-page [class*="text-[#4E4432]"] {
+  color: #FFF0D8 !important;
+}
+
+[data-theme="dark"] .aura-crop-page [class*="text-amber-700"] {
+  color: #FCD38A !important;
+}
+
 [data-theme="dark"] .aura-crop-page [class*="text-slate-"],
 [data-theme="dark"] .aura-crop-results [class*="text-slate-"] {
   color: var(--text-secondary) !important;
@@ -292,11 +304,35 @@ input:focus-visible {
   background-color: rgba(215, 168, 110, 0.15) !important;
 }
 
+[data-theme="dark"] .aura-crop-results [class*="bg-orange-50"] {
+  background-color: rgba(194, 91, 38, 0.20) !important;
+  border-color: rgba(253, 186, 116, 0.42) !important;
+  color: #FFE8D4 !important;
+}
+
+[data-theme="dark"] .aura-crop-results [class*="bg-rose-50"] {
+  background-color: rgba(159, 47, 68, 0.22) !important;
+  border-color: rgba(253, 164, 175, 0.42) !important;
+  color: #FFE4E6 !important;
+}
+
 [data-theme="dark"] .aura-crop-page [class*="text-emerald-950"],
 [data-theme="dark"] .aura-crop-results [class*="text-emerald-950"],
 [data-theme="dark"] .aura-crop-page [class*="text-amber-950"],
-[data-theme="dark"] .aura-crop-results [class*="text-amber-950"] {
+[data-theme="dark"] .aura-crop-results [class*="text-amber-950"],
+[data-theme="dark"] .aura-crop-results [class*="text-orange-950"],
+[data-theme="dark"] .aura-crop-results [class*="text-rose-950"] {
   color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .aura-crop-results [class*="text-orange-800"],
+[data-theme="dark"] .aura-crop-results [class*="text-orange-900"] {
+  color: #FED7AA !important;
+}
+
+[data-theme="dark"] .aura-crop-results [class*="text-rose-800"],
+[data-theme="dark"] .aura-crop-results [class*="text-rose-900"] {
+  color: #FECDD3 !important;
 }
 
 /* Light text supplied by result cards stays bright regardless of theme. */
