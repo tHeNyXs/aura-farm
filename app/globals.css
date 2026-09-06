@@ -26,13 +26,13 @@
   --color-teal-dark:#1F5A2B;
   --color-green:    #2E7D32;
   --color-green-dk: #1B4D25;
-  --color-accent:   #66BB6A;
+  --brand-accent:   #66BB6A;
   --color-glow:     rgba(102, 187, 106, 0.24);
 
   /* Borders */
-  --border-soft:   rgba(15, 158, 123, 0.15);
-  --border-mid:    rgba(15, 158, 123, 0.30);
-  --border-strong: rgba(15, 158, 123, 0.55);
+  --border-soft:   rgba(46, 125, 50, 0.15);
+  --border-mid:    rgba(46, 125, 50, 0.30);
+  --border-strong: rgba(46, 125, 50, 0.55);
 
   /* Shadows */
   --shadow-sm:  0 1px 3px rgba(13, 43, 31, 0.08), 0 1px 2px rgba(13, 43, 31, 0.05);
@@ -46,9 +46,9 @@
   --glass-blur:   blur(14px);
 
   /* Gradient */
-  --grad-hero:    linear-gradient(160deg, #C8EDD9 0%, #EEF7F2 40%, #DDF0EC 100%);
-  --grad-brand:   linear-gradient(135deg, #0F9E7B, #0C7A5E);
-  --grad-text:    linear-gradient(135deg, #0C7A5E 0%, #0F9E7B 50%, #2CC9A0 100%);
+  --grad-hero:    linear-gradient(160deg, #EAF5E8 0%, #F6F8F5 42%, #FFF4E1 100%);
+  --grad-brand:   linear-gradient(135deg, #2E7D32, #397E3D);
+  --grad-text:    linear-gradient(135deg, #1F5A2B 0%, #2E7D32 55%, #66BB6A 100%);
 
   /* Typography */
   --font-heading: var(--font-thai), var(--font-inter), system-ui, sans-serif;
@@ -63,29 +63,42 @@
   --radius-full:9999px;
 }
 
+/* Tailwind v4 semantic aliases. Keeping these tied to the design tokens
+   prevents utility classes from losing contrast when the theme changes. */
+@theme inline {
+  --color-bg: var(--bg-base);
+  --color-panel: var(--bg-panel);
+  --color-line: var(--border-soft);
+  --color-primary: var(--color-teal);
+  --color-primary-dark: var(--color-teal-dark);
+  --color-accent: var(--brand-accent);
+  --color-ink-body: var(--text-secondary);
+  --color-ink-soft: var(--text-muted);
+}
+
 /* ─── Dark Mode Tokens ─────────────────────────── */
 [data-theme="dark"] {
-  --bg-base:     #081812;
-  --bg-surface:  #0C2218;
-  --bg-panel:    rgba(10, 35, 24, 0.85);
-  --bg-nav:      rgba(8, 24, 18, 0.90);
+  --bg-base:     #0E1710;
+  --bg-surface:  #142317;
+  --bg-panel:    rgba(20, 35, 23, 0.94);
+  --bg-nav:      rgba(14, 23, 16, 0.92);
 
-  --text-primary:  #E8F5EF;
-  --text-secondary:#9DCFB8;
-  --text-muted:    #6BAD92;
-  --text-subtle:   #3F7A5C;
+  --text-primary:  #F3FAF2;
+  --text-secondary:#C6DAC7;
+  --text-muted:    #9EB7A0;
+  --text-subtle:   #78917B;
 
-  --color-teal:     #2CC9A0;
-  --color-teal-mid: #0F9E7B;
-  --color-teal-dark:#0C7A5E;
-  --color-green:    #2CC9A0;
-  --color-green-dk: #0D8A62;
-  --color-accent:   #5DDBB8;
-  --color-glow:     rgba(44, 201, 160, 0.20);
+  --color-teal:     #81C784;
+  --color-teal-mid: #66BB6A;
+  --color-teal-dark:#C5E1A5;
+  --color-green:    #81C784;
+  --color-green-dk: #4CAF50;
+  --brand-accent:   #A5D6A7;
+  --color-glow:     rgba(129, 199, 132, 0.22);
 
-  --border-soft:   rgba(44, 201, 160, 0.12);
-  --border-mid:    rgba(44, 201, 160, 0.25);
-  --border-strong: rgba(44, 201, 160, 0.50);
+  --border-soft:   rgba(197, 225, 165, 0.16);
+  --border-mid:    rgba(197, 225, 165, 0.32);
+  --border-strong: rgba(197, 225, 165, 0.58);
 
   --shadow-sm:  0 1px 3px rgba(0,0,0,0.35);
   --shadow-md:  0 4px 20px rgba(0,0,0,0.45);
@@ -170,6 +183,20 @@ input:focus-visible {
   text-align: center;
   white-space: nowrap;
 }
+
+[data-theme="dark"] .aura-workspace-header,
+[data-theme="dark"] .aura-workspace-sidebar,
+[data-theme="dark"] .aura-map-status {
+  background: rgba(20, 35, 23, 0.94);
+  border-color: rgba(197, 225, 165, 0.24);
+}
+
+[data-theme="dark"] .aura-factor-strip {
+  background: linear-gradient(135deg, #1B3220, #302A1D);
+  border-color: rgba(197, 225, 165, 0.22);
+}
+
+[data-theme="dark"] .aura-factor-strip span { color: #DCEEDA; }
 
 @media (max-width: 1023px) {
   .aura-workspace-sidebar {
@@ -440,7 +467,7 @@ input:focus-visible {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: var(--color-accent);
+  background: var(--brand-accent);
   opacity: 0.6;
   animation: live-ping 1.8s ease-out infinite;
 }
@@ -712,7 +739,7 @@ input:focus-visible {
 .rolex-line {
   height: 3px;
   border-radius: var(--radius-full);
-  background: linear-gradient(90deg, var(--color-teal), var(--color-accent), transparent);
+  background: linear-gradient(90deg, var(--color-teal), var(--brand-accent), transparent);
   transform-origin: center center;
   transition: transform 1s cubic-bezier(0.16, 1, 0.3, 1);
 }
