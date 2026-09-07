@@ -78,13 +78,6 @@ export default function Footer() {
             เกณฑ์มาตรฐาน FAO
           </a>
           <Link
-            href="/my-parcels"
-            className="transition-colors hover:text-[var(--color-teal)]"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            แปลงที่ดินของฉัน
-          </Link>
-          <Link
             href="/analyze"
             className="transition-colors hover:text-[var(--color-teal)]"
             style={{ color: "var(--text-secondary)" }}

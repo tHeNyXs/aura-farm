@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { getAnalysisById } from "@/app/lib/analysis-store";
 import Navbar from "@/app/components/ui/navbar";
 import Footer from "@/app/components/ui/footer";
-import SaveParcelButton from "./components/save-parcel-button";
 import PrintReportButton from "./components/print-report-button";
 
 export const maxDuration = 60;
@@ -251,7 +250,6 @@ export default async function AnalysisResultPage({ params, searchParams }: PageP
           {/* Top Actions */}
           <div className="flex flex-wrap items-center gap-3 shrink-0">
             <PrintReportButton />
-            <SaveParcelButton analysis={data} />
             <Link
               href={`/analyze/result/${data.id}/crops${sp.poly ? `?poly=${sp.poly}` : ""}`}
               className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] transition-all flex items-center gap-2 cursor-pointer"

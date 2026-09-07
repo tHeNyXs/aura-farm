@@ -39,16 +39,6 @@ function SatelliteIcon() {
   );
 }
 
-function ParcelIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polygon points="3 6 12 3 21 6 21 18 12 21 3 18 3 6" />
-      <line x1="12" y1="3" x2="12" y2="21" />
-      <line x1="3" y1="12" x2="21" y2="12" />
-    </svg>
-  );
-}
-
 /* ─── Component ──────────────────────────────────── */
 
 export default function Navbar() {
@@ -172,26 +162,6 @@ export default function Navbar() {
                 <span>เริ่มสำรวจแปลง</span>
               </Link>
             )}
-
-            {/* My Parcels Link */}
-            <Link
-              href="/my-parcels"
-              id="nav-my-parcels"
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                isScrolled ? "scale-95" : "scale-100"
-              }`}
-              style={{
-                background: "var(--glass-bg)",
-                border: "1px solid var(--border-mid)",
-                color: "var(--text-primary)",
-                backdropFilter: "var(--glass-blur)",
-                WebkitBackdropFilter: "var(--glass-blur)",
-              }}
-            >
-              <ParcelIcon />
-              <span className="hidden sm:inline">แปลงที่ดินของฉัน</span>
-              <span className="sm:hidden">แปลงของฉัน</span>
-            </Link>
 
             {/* Mobile navigation: exposes the same sections and main CTA as desktop. */}
             <button
